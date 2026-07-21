@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>개똥철학의 미식</title>
+<title>미식일지 - Personal Food Archive</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -237,11 +237,15 @@ async function fetchCloudRestaurants() {
 
 async function saveCloudRestaurants(list) {
   if (!CLOUD_CONFIGURED) return;
-  await fetch(JSONBIN_URL, {
+  const res = await fetch(JSONBIN_URL, {
     method: "PUT",
     headers: { "Content-Type": "application/json", "X-Master-Key": JSONBIN_API_KEY },
     body: JSON.stringify(list),
   });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`cloud save failed (${res.status}) ${detail}`);
+  }
 }
 
 function loadRestaurants() {
@@ -1113,7 +1117,14 @@ function FoodArchiveApp() {
   const updateRestaurants = (next) => {
     setRestaurants(next);
     if (CLOUD_CONFIGURED) {
-      saveCloudRestaurants(next).catch(() => setCloudStatus("error"));
+      saveCloudRestaurants(next)
+        .then(() => setCloudStatus("ready"))
+        .catch((err) => {
+          setCloudStatus("error");
+          window.alert(
+            "공유 저장소에 저장하지 못했어요. 방금 변경한 내용은 이 브라우저에만 남아있고, 새로고침하거나 다른 사람이 보면 반영되지 않을 수 있어요.\n\n(개발자용 상세정보: " + err.message + ")"
+          );
+        });
     }
   };
 
@@ -1213,7 +1224,7 @@ function FoodArchiveApp() {
               미
             </div>
             <div>
-              <p className="font-display font-semibold text-base leading-none" style={{ color: C.ink }}>개똥철학의 미식</p>
+              <p className="font-display font-semibold text-base leading-none" style={{ color: C.ink }}>미식일지</p>
               <p className="text-[11px] leading-none mt-0.5" style={{ color: C.inkFaint }}>Personal Food Archive</p>
             </div>
           </div>
