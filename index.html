@@ -194,6 +194,37 @@ const initialRestaurants = [
 ];
 
 const STORAGE_KEY = "misikilji-restaurants-v1";
+
+/* =================================================================
+   공유 저장소 설정 (JSONBin.io) — 방문자 전원이 같은 데이터를 보게 하려면
+   반드시 아래 두 값을 본인의 값으로 채워주세요. 설정 방법은 대화창 안내 참고.
+================================================================= */
+const JSONBIN_BIN_ID = "PASTE_YOUR_BIN_ID_HERE";
+const JSONBIN_API_KEY = "PASTE_YOUR_MASTER_KEY_HERE";
+const ADMIN_PASSCODE = "CHANGE_ME"; // 관리자(글쓴이)만 아는 비밀번호로 바꿔서 사용하세요.
+const CLOUD_CONFIGURED = JSONBIN_BIN_ID !== "PASTE_YOUR_BIN_ID_HERE" && JSONBIN_API_KEY !== "PASTE_YOUR_MASTER_KEY_HERE";
+const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+
+async function fetchCloudRestaurants() {
+  if (!CLOUD_CONFIGURED) return null;
+  const res = await fetch(`${JSONBIN_URL}/latest`, {
+    headers: { "X-Master-Key": JSONBIN_API_KEY },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("cloud fetch failed");
+  const json = await res.json();
+  return Array.isArray(json.record) ? json.record : null;
+}
+
+async function saveCloudRestaurants(list) {
+  if (!CLOUD_CONFIGURED) return;
+  await fetch(JSONBIN_URL, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", "X-Master-Key": JSONBIN_API_KEY },
+    body: JSON.stringify(list),
+  });
+}
+
 function loadRestaurants() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
@@ -996,6 +1027,7 @@ function ConfirmDialog({ target, onCancel, onConfirm }) {
 ---------------------------------------------------------------- */
 function FoodArchiveApp() {
   const [restaurants, setRestaurants] = useState(loadRestaurants);
+  const [cloudStatus, setCloudStatus] = useState(CLOUD_CONFIGURED ? "loading" : "unconfigured"); // loading | ready | error | unconfigured
   const [gu, setGu] = useState(null);
   const [dong, setDong] = useState(null);
   const [query, setQuery] = useState("");
@@ -1044,37 +1076,101 @@ function FoodArchiveApp() {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(restaurants));
     } catch (e) {
-      /* storage full or unavailable — app still works, just won't persist */
+      /* storage full or unavailable — local cache only, app still works */
     }
   }, [restaurants]);
 
+  useEffect(() => {
+    if (!CLOUD_CONFIGURED) { setCloudStatus("unconfigured"); return; }
+    fetchCloudRestaurants()
+      .then((data) => {
+        if (data && data.length) setRestaurants(data);
+        setCloudStatus("ready");
+      })
+      .catch(() => setCloudStatus("error"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updateRestaurants = (next) => {
+    setRestaurants(next);
+    if (CLOUD_CONFIGURED) {
+      saveCloudRestaurants(next).catch(() => setCloudStatus("error"));
+    }
+  };
+
+  const verifyPasscode = (actionLabel) => {
+    const input = window.prompt(`${actionLabel} — 비밀번호를 입력하세요.`);
+    if (input === null) return false; // cancelled
+    if (input !== ADMIN_PASSCODE) {
+      window.alert("비밀번호가 올바르지 않습니다.");
+      return false;
+    }
+    return true;
+  };
+
   const resetToSampleData = () => {
+    if (!verifyPasscode("샘플 데이터로 초기화")) return;
     if (!window.confirm("현재 기록을 모두 지우고 샘플 데이터로 되돌릴까요? 이 작업은 되돌릴 수 없습니다.")) return;
-    setRestaurants(initialRestaurants);
+    updateRestaurants(initialRestaurants);
     setSelectedId(null);
     setDetailId(null);
     setPreviewId(null);
   };
 
 
+  const importFileRef = useRef(null);
+
+  const exportData = () => {
+    const blob = new Blob([JSON.stringify(restaurants, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "data.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (file) => {
+    if (!verifyPasscode("데이터 가져오기")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        if (!Array.isArray(parsed)) throw new Error("invalid format");
+        updateRestaurants(parsed);
+        setSelectedId(null);
+        setDetailId(null);
+        setPreviewId(null);
+        window.alert(`${parsed.length}곳의 맛집 기록을 불러왔습니다.`);
+      } catch (e) {
+        window.alert("파일을 읽을 수 없어요. misikilji에서 내보낸 JSON 백업 파일인지 확인해 주세요.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const selectMarker = (id) => { setSelectedId(id); setPreviewId(id); };
   const openDetail = (id) => { setDetailId(id); setPreviewId(null); };
 
   const saveRestaurant = (payload) => {
-    setRestaurants((rs) => {
-      const exists = rs.some((r) => r.id === payload.id);
-      return exists ? rs.map((r) => (r.id === payload.id ? payload : r)) : [payload, ...rs];
-    });
+    const exists = restaurants.some((r) => r.id === payload.id);
+    if (!verifyPasscode(exists ? "맛집 수정" : "맛집 추가")) return;
+    const next = exists ? restaurants.map((r) => (r.id === payload.id ? payload : r)) : [payload, ...restaurants];
+    updateRestaurants(next);
     setFormOpen(false);
     setEditing(null);
     setDetailId(payload.id);
   };
 
   const confirmDelete = () => {
-    setRestaurants((rs) => rs.filter((r) => r.id !== deleteTarget.id));
+    if (!verifyPasscode("맛집 삭제")) return;
+    updateRestaurants(restaurants.filter((r) => r.id !== deleteTarget.id));
     if (detailId === deleteTarget.id) setDetailId(null);
     setDeleteTarget(null);
   };
+
 
   return (
     <div className="w-full h-screen flex flex-col font-body" style={{ background: C.paper, color: C.ink }}>
@@ -1155,6 +1251,17 @@ function FoodArchiveApp() {
         />
       </header>
 
+      {cloudStatus === "unconfigured" && (
+        <div className="px-4 py-2 text-xs font-medium" style={{ background: C.goldPale, color: C.gold }}>
+          공유 저장소(JSONBin)가 아직 설정되지 않았어요. 지금은 이 브라우저에만 저장됩니다 — 방문자 전원에게 최신 목록을 보여주려면 코드 상단의 JSONBIN_BIN_ID / JSONBIN_API_KEY 를 채워주세요.
+        </div>
+      )}
+      {cloudStatus === "error" && (
+        <div className="px-4 py-2 text-xs font-medium" style={{ background: C.clayPale, color: C.clay }}>
+          공유 저장소에 연결하지 못했어요. 방금 한 변경사항은 이 브라우저에만 저장되어 있어요. 인터넷 연결과 JSONBin 설정을 확인해 주세요.
+        </div>
+      )}
+
       {/* main */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row relative">
         <div className="flex-1 min-h-0 relative">
@@ -1178,9 +1285,16 @@ function FoodArchiveApp() {
             </p>
             <div className="flex items-center gap-2">
               <p className="text-xs font-mono" style={{ color: C.inkFaint }}>{filtered.length}곳</p>
+              <button onClick={exportData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
+                내보내기
+              </button>
+              <button onClick={() => importFileRef.current?.click()} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
+                가져오기
+              </button>
               <button onClick={resetToSampleData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.inkFaint }}>
                 샘플로 초기화
               </button>
+              <input ref={importFileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importData(e.target.files[0])} />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
@@ -1222,13 +1336,21 @@ function FoodArchiveApp() {
             </span>
           </button>
           <div className="overflow-y-auto px-3 pb-4" style={{ height: "calc(100% - 48px)" }}>
-            <div className="flex items-center justify-between px-1 pb-2">
+            <div className="flex items-center justify-between px-1 pb-2 gap-2 flex-wrap">
               <p className="text-sm font-semibold" style={{ color: C.ink }}>
                 {dong ? `${gu} ${dong}` : gu || "서울 전체"}
               </p>
-              <button onClick={resetToSampleData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.inkFaint }}>
-                샘플로 초기화
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={exportData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
+                  내보내기
+                </button>
+                <button onClick={() => importFileRef.current?.click()} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
+                  가져오기
+                </button>
+                <button onClick={resetToSampleData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.inkFaint }}>
+                  샘플로 초기화
+                </button>
+              </div>
             </div>
             <div className="space-y-2">
               {filtered.length === 0 ? (
