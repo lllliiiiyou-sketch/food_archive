@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>미식일지 - Personal Food Archive</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  html, body, #root { height: 100%; margin: 0; padding: 0; }
+  body { background: #FBF8F2; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/plain" id="app-source">
+const { useState, useMemo, useRef } = React;
+
+const ICON_PATHS = {
+  mapPin: <><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z" /><circle cx="12" cy="10" r="2.4" /></>,
+  search: <><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></>,
+  slidersHorizontal: <><path d="M4 6h9" /><circle cx="16" cy="6" r="2" /><path d="M4 12h4" /><circle cx="11" cy="12" r="2" /><path d="M15 12h5" /><path d="M4 18h9" /><circle cx="16" cy="18" r="2" /></>,
+  plus: <path d="M12 5v14M5 12h14" />,
+  x: <path d="M18 6 6 18M6 6l12 12" />,
+  star: <path d="M12 2.2l2.9 6.5 7 .6-5.3 4.6 1.6 6.9-6.2-3.8-6.2 3.8 1.6-6.9L2.1 9.3l7-.6z" />,
+  chevronDown: <path d="M6 9l6 6 6-6" />,
+  trash2: <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-8 0 1 12.5A2 2 0 0 0 9 21h6a2 2 0 0 0 2-1.5L18 7" />,
+  pencil: <path d="M3 21l4.3-1 10.9-10.9a2 2 0 0 0 0-2.9l-.4-.4a2 2 0 0 0-2.9 0L4 16.7z" />,
+  check: <path d="M4 12l5 5 11-11" />,
+  thumbsUp: <path d="M7 22V11m0 0 4.5-7.5a1.5 1.5 0 0 1 2.8.9L13.5 9H19a2 2 0 0 1 2 2.3l-1.4 8A2 2 0 0 1 17.6 21H9a2 2 0 0 1-2-2z" />,
+  helpCircle: <><circle cx="12" cy="12" r="9" /><path d="M9.4 9a2.6 2.6 0 0 1 5 1c0 1.7-2.5 1.9-2.5 3.6" /><path d="M12 17.3h.01" /></>,
+  thumbsDown: <path d="M17 2v11m0 0-4.5 7.5a1.5 1.5 0 0 1-2.8-.9L10.5 15H5a2 2 0 0 1-2-2.3l1.4-8A2 2 0 0 1 6.4 3H15z" />,
+  arrowLeft: <path d="M19 12H5m0 0 7 7m-7-7 7-7" />,
+  navigation: <path d="M12 2 4.5 20.3 12 16.8l7.5 3.5z" />,
+  calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 11h18" /></>,
+  imagePlus: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 16l4.6-4.6a2 2 0 0 1 2.8 0L15 16" /><circle cx="9" cy="9" r="1.4" /><path d="M17 8v4m-2-2h4" /></>,
+  mapIcon: <><path d="M9 20l-6 2V6l6-2 6 2 6-2v16l-6 2-6-2z" /><path d="M9 4v16M15 6v16" /></>,
+  listIcon: <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,
+  utensils: <><path d="M6 2v7a2 2 0 0 0 4 0V2M8 9v13" /><path d="M18 2c-2.2 0-4 2.2-4 5v3c0 1.7 1.1 3 3 3v9" /></>,
+};
+
+function Icon({ name, width = 16, height = 16, fill = "none", stroke = "currentColor", strokeWidth = 2, style, className }) {
+  return (
+    <svg
+      width={width} height={height} viewBox="0 0 24 24"
+      fill={fill} stroke={stroke} strokeWidth={strokeWidth}
+      strokeLinecap="round" strokeLinejoin="round"
+      style={style} className={className}
+    >
+      {ICON_PATHS[name]}
+    </svg>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Palette & tokens ("field-ledger" palette — paper + ink stamp navy + gold rating ink)
+---------------------------------------------------------------- */
+const C = {
+  paper: "#FBF8F2",
+  paperAlt: "#F1EAD9",
+  paperDeep: "#E7DEC7",
+  ink: "#242017",
+  inkSoft: "#726B5A",
+  inkFaint: "#9B937E",
+  line: "#E2D8C0",
+  lineStrong: "#D2C6A6",
+  navy: "#1F3A5F",
+  navySoft: "#2F517D",
+  navyPale: "#E8EEF4",
+  gold: "#B07E2E",
+  goldPale: "#F3E7CE",
+  clay: "#9C4430",
+  clayPale: "#F3E1DA",
+  green: "#3E6B52",
+  greenPale: "#E3EDE6",
+};
+
+const CATEGORIES = ["한식", "카페", "베이커리", "양식", "일식", "중식", "분식", "술집", "아시안", "디저트"];
+const CATEGORY_MARK = {
+  한식: "飯", 카페: "coffee", 베이커리: "bread", 양식: "fork", 일식: "鮨",
+  중식: "包", 분식: "떡", 술집: "酒", 아시안: "aroi", 디저트: "cake",
+};
+
+const REGIONS = {
+  마포구: ["연남동", "합정동", "망원동"],
+  종로구: ["익선동", "삼청동", "효자동"],
+  용산구: ["한남동", "이태원동", "보광동"],
+  성동구: ["성수동", "금호동", "왕십리동"],
+  강남구: ["신사동", "청담동", "역삼동"],
+};
+
+const DONG_CENTERS = {
+  "마포구-연남동": { x: 17, y: 28 }, "마포구-합정동": { x: 13, y: 34 }, "마포구-망원동": { x: 9, y: 30 },
+  "종로구-익선동": { x: 45, y: 17 }, "종로구-삼청동": { x: 41, y: 10 }, "종로구-효자동": { x: 37, y: 12 },
+  "용산구-한남동": { x: 53, y: 47 }, "용산구-이태원동": { x: 48, y: 44 }, "용산구-보광동": { x: 50, y: 51 },
+  "성동구-성수동": { x: 69, y: 41 }, "성동구-금호동": { x: 64, y: 45 }, "성동구-왕십리동": { x: 60, y: 38 },
+  "강남구-신사동": { x: 72, y: 63 }, "강남구-청담동": { x: 78, y: 60 }, "강남구-역삼동": { x: 76, y: 68 },
+};
+
+const PRICE_BUCKETS = [
+  { key: "all", label: "전체" },
+  { key: "u1", label: "~1만원" },
+  { key: "1-2", label: "1~2만원" },
+  { key: "2-3", label: "2~3만원" },
+  { key: "o3", label: "3만원~" },
+];
+const REVISIT_LABEL = { yes: "또 갈래요", maybe: "글쎄요", no: "아마 안 갈래요" };
+
+function photo(seed, type, isMain) {
+  return { id: seed, url: `https://picsum.photos/seed/${seed}/700/520`, type, isMain: !!isMain };
+}
+
+const initialRestaurants = [
+  {
+    id: "r1", name: "연남 온기", address: "서울 마포구 연남동 227-8", gu: "마포구", dong: "연남동",
+    x: 17, y: 28, category: "한식", visitDate: "2026-05-12", createdAt: "2026-05-13", updatedAt: "2026-05-13",
+    rating: 4.5, oneLiner: "집밥 같은 국물이 자꾸 생각나는 곳", revisit: "yes",
+    review: "혼자 가도 눈치 안 보이는 분위기가 좋았다. 국밥 국물이 진하고 삼삼해서 다음날 또 생각났다. 반찬 리필도 흔쾌히 해주셔서 마음까지 든든했던 저녁.",
+    menus: [
+      { id: "m1", name: "소고기 국밥", price: 11000, isSignature: true },
+      { id: "m2", name: "수육 한 접시", price: 24000, isSignature: false },
+      { id: "m3", name: "계란찜", price: 6000, isSignature: false },
+    ],
+    photos: [photo("yeonnam-ongi-1", "음식", true), photo("yeonnam-ongi-2", "내부", false), photo("yeonnam-ongi-3", "외관", false)],
+  },
+  {
+    id: "r2", name: "연남 브릭커피", address: "서울 마포구 연남동 240-1", gu: "마포구", dong: "연남동",
+    x: 19, y: 27, category: "카페", visitDate: "2026-06-02", createdAt: "2026-06-02", updatedAt: "2026-06-02",
+    rating: 4, oneLiner: "핸드드립 향이 오래 남는 조용한 카페", revisit: "maybe",
+    review: "좌석 간격이 넓어서 노트북 작업하기 좋았다. 크루아상은 살짝 눅눅했는데 커피 맛이 그걸 다 상쇄할 정도로 좋았다.",
+    menus: [
+      { id: "m1", name: "핸드드립 (에티오피아)", price: 7500, isSignature: true },
+      { id: "m2", name: "버터 크루아상", price: 5000, isSignature: false },
+    ],
+    photos: [photo("yeonnam-brick-1", "음식", true), photo("yeonnam-brick-2", "내부", false)],
+  },
+  {
+    id: "r3", name: "익선동 다정", address: "서울 종로구 익선동 55-1", gu: "종로구", dong: "익선동",
+    x: 45, y: 17, category: "디저트", visitDate: "2026-04-20", createdAt: "2026-04-21", updatedAt: "2026-04-21",
+    rating: 5, oneLiner: "한옥 마당에서 먹는 인절미 빙수", revisit: "yes",
+    review: "한옥을 개조한 공간이라 사진이 예쁘게 나온다. 인절미 빙수의 얼음이 눈처럼 고와서 끝까지 물 없이 다 먹었다. 웨이팅이 긴 편이라 오픈런 추천.",
+    menus: [
+      { id: "m1", name: "인절미 빙수", price: 14000, isSignature: true },
+      { id: "m2", name: "쌍화차", price: 8000, isSignature: false },
+    ],
+    photos: [photo("ikseon-dajeong-1", "음식", true), photo("ikseon-dajeong-2", "외관", false), photo("ikseon-dajeong-3", "메뉴판", false)],
+  },
+  {
+    id: "r4", name: "한남 그로서리키친", address: "서울 용산구 한남동 683-142", gu: "용산구", dong: "한남동",
+    x: 53, y: 47, category: "양식", visitDate: "2026-03-15", createdAt: "2026-03-16", updatedAt: "2026-03-16",
+    rating: 4, oneLiner: "런치 코스 가성비가 좋은 비스트로", revisit: "yes",
+    review: "런치 코스 기준으로는 만족스러운 구성. 수프와 메인 사이 텀이 조금 길었지만 빵이 계속 리필되어 지루하지 않았다.",
+    menus: [
+      { id: "m1", name: "런치 코스 (수프+메인+디저트)", price: 32000, isSignature: true },
+      { id: "m2", name: "트러플 크림 파스타", price: 26000, isSignature: false },
+    ],
+    photos: [photo("hannam-grocery-1", "음식", true), photo("hannam-grocery-2", "내부", false)],
+  },
+  {
+    id: "r5", name: "성수 발효식탁", address: "서울 성동구 성수동2가 302-14", gu: "성동구", dong: "성수동",
+    x: 69, y: 41, category: "한식", visitDate: "2026-05-28", createdAt: "2026-05-29", updatedAt: "2026-05-29",
+    rating: 4.5, oneLiner: "된장 베이스 정식이 정갈한 곳", revisit: "yes",
+    review: "발효 재료를 활용한 코스 정식. 간이 세지 않아서 재료 본연의 맛이 잘 느껴졌다. 그릇과 플레이팅도 정성스러워서 특별한 날 방문하기 좋겠다.",
+    menus: [
+      { id: "m1", name: "제철 정식", price: 28000, isSignature: true },
+      { id: "m2", name: "된장 뚝배기 단품", price: 12000, isSignature: false },
+    ],
+    photos: [photo("seongsu-balhyo-1", "음식", true), photo("seongsu-balhyo-2", "외관", false), photo("seongsu-balhyo-3", "내부", false)],
+  },
+  {
+    id: "r6", name: "신사 오마카세 온", address: "서울 강남구 신사동 640-9", gu: "강남구", dong: "신사동",
+    x: 71, y: 62, category: "일식", visitDate: "2026-02-08", createdAt: "2026-02-09", updatedAt: "2026-02-09",
+    rating: 5, oneLiner: "생일에 큰맘 먹고 간 오마카세", revisit: "yes",
+    review: "제철 생선 위주 구성이라 매번 코스가 조금씩 달라진다고. 밥알 온도와 크기가 정확해서 몰입도가 높았다. 가격대는 있지만 특별한 날엔 아깝지 않다.",
+    menus: [
+      { id: "m1", name: "런치 오마카세 20피스", price: 95000, isSignature: true },
+      { id: "m2", name: "된장국 추가", price: 4000, isSignature: false },
+    ],
+    photos: [photo("sinsa-omakase-1", "음식", true), photo("sinsa-omakase-2", "메뉴판", false), photo("sinsa-omakase-3", "내부", false)],
+  },
+  {
+    id: "r7", name: "신사 야마자키 이자카야", address: "서울 강남구 신사동 518-11", gu: "강남구", dong: "신사동",
+    x: 73, y: 64, category: "술집", visitDate: "2026-01-19", createdAt: "2026-01-20", updatedAt: "2026-01-20",
+    rating: 3.5, oneLiner: "안주는 좋은데 자리가 좁은 편", revisit: "maybe",
+    review: "꼬치 굽는 냄새가 진짜 좋았다. 다만 테이블 간격이 좁아서 옆자리 대화가 다 들리는 게 아쉬웠다. 하이볼 라인업은 훌륭했음.",
+    menus: [
+      { id: "m1", name: "모듬 꼬치 5종", price: 21000, isSignature: true },
+      { id: "m2", name: "하이볼", price: 8000, isSignature: false },
+    ],
+    photos: [photo("sinsa-yamazaki-1", "음식", true), photo("sinsa-yamazaki-2", "외관", false)],
+  },
+];
+
+/* ---------------------------------------------------------------
+   Helpers
+---------------------------------------------------------------- */
+const won = (n) => `${Number(n || 0).toLocaleString("ko-KR")}원`;
+const mainPhoto = (r) => r.photos.find((p) => p.isMain) || r.photos[0] || null;
+const signatureMenu = (r) => r.menus.find((m) => m.isSignature) || r.menus[0] || null;
+const avgPrice = (r) => (r.menus.length ? r.menus.reduce((s, m) => s + Number(m.price || 0), 0) / r.menus.length : 0);
+const priceBucketOf = (avg) => (avg <= 10000 ? "u1" : avg <= 20000 ? "1-2" : avg <= 30000 ? "2-3" : "o3");
+const uid = (p) => `${p}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+function Stars({ value, size = 15, showValue = true }) {
+  const pct = Math.max(0, Math.min(100, (value / 5) * 100));
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="relative inline-flex" style={{ lineHeight: 0 }}>
+        <span className="inline-flex" style={{ color: C.paperDeep }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Icon name="star" key={i} width={size} height={size} fill="currentColor" stroke="none" />
+          ))}
+        </span>
+        <span
+          className="absolute top-0 left-0 inline-flex overflow-hidden"
+          style={{ width: `${pct}%`, color: C.gold }}
+        >
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Icon name="star" key={i} width={size} height={size} fill="currentColor" stroke="none" />
+          ))}
+        </span>
+      </span>
+      {showValue && (
+        <span className="font-mono text-xs" style={{ color: C.inkSoft }}>{value.toFixed(1)}</span>
+      )}
+    </span>
+  );
+}
+
+function RevisitBadge({ revisit }) {
+  const map = {
+    yes: { icon: "thumbsUp", bg: C.greenPale, fg: C.green, label: "재방문 의사" },
+    maybe: { icon: "helpCircle", bg: C.paperAlt, fg: C.inkSoft, label: "글쎄요" },
+    no: { icon: "thumbsDown", bg: C.clayPale, fg: C.clay, label: "재방문 없음" },
+  };
+  const m = map[revisit] || map.maybe;
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium"
+      style={{ background: m.bg, color: m.fg }}
+    >
+      <Icon name={m.icon} width={12} height={12} /> {m.label}
+    </span>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Mock map (schematic Seoul — not to geographic scale)
+---------------------------------------------------------------- */
+function MockMap({ restaurants, selectedId, hoveredId, onSelectMarker, focus, previewId, onClosePreview, onOpenDetail }) {
+  const preview = restaurants.find((r) => r.id === previewId);
+  const scale = focus ? 1.9 : 1;
+  const cx = focus ? focus.x : 50;
+  const cy = focus ? focus.y : 40;
+  const originStyle = { transformOrigin: `${cx}% ${cy}%` };
+
+  return (
+    <div
+      className="relative w-full h-full overflow-hidden"
+      style={{
+        background: `repeating-linear-gradient(0deg, ${C.lineStrong}22 0px, ${C.lineStrong}22 1px, transparent 1px, transparent 28px),
+                      repeating-linear-gradient(90deg, ${C.lineStrong}22 0px, ${C.lineStrong}22 1px, transparent 1px, transparent 28px),
+                      ${C.paperAlt}`,
+      }}
+    >
+      <div
+        className="absolute inset-0 transition-transform duration-700 ease-out"
+        style={{ transform: `scale(${scale})`, ...originStyle }}
+      >
+        {/* river */}
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 80" preserveAspectRatio="none" style={{ pointerEvents: "none" }}>
+          <path
+            d="M -5 58 C 20 50, 35 62, 50 55 C 68 47, 80 60, 105 52 L 105 68 C 80 76, 68 63, 50 71 C 35 78, 20 66, -5 74 Z"
+            fill={C.navyPale}
+            opacity="0.9"
+          />
+          <text x="8" y="72" fontSize="2.6" fill={C.navySoft} opacity="0.6" style={{ fontFamily: "serif" }}>한강</text>
+        </svg>
+
+        {/* neighborhood soft labels */}
+        {Object.entries(REGIONS).map(([gu, dongs]) => {
+          const pts = dongs.map((d) => DONG_CENTERS[`${gu}-${d}`]).filter(Boolean);
+          const gx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+          const gy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+          return (
+            <div
+              key={gu}
+              className="absolute text-xs font-medium select-none"
+              style={{ left: `${gx}%`, top: `${gy - 9}%`, color: C.inkFaint, transform: "translate(-50%,-50%)" }}
+            >
+              {gu}
+            </div>
+          );
+        })}
+
+        {/* markers */}
+        {restaurants.map((r) => {
+          const active = r.id === selectedId || r.id === hoveredId;
+          return (
+            <button
+              key={r.id}
+              onClick={() => onSelectMarker(r.id)}
+              className="absolute flex items-center justify-center rounded-full transition-transform duration-150"
+              style={{
+                left: `${r.x}%`,
+                top: `${r.y}%`,
+                width: active ? 34 : 26,
+                height: active ? 34 : 26,
+                transform: "translate(-50%,-100%)",
+                background: active ? C.navy : "#FFFFFF",
+                border: `2px solid ${active ? C.gold : C.navy}`,
+                color: active ? "#fff" : C.navy,
+                boxShadow: "0 1px 3px rgba(36,32,23,0.25)",
+                zIndex: active ? 20 : 10,
+              }}
+              aria-label={r.name}
+              title={r.name}
+            >
+              <Icon name="mapPin" width={active ? 17 : 14} height={active ? 17 : 14} fill={active ? C.gold : "none"} />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* preview card (outside scaled layer, positioned by same percent coords) */}
+      {preview && (
+        <div
+          className="absolute rounded-xl p-3 flex gap-3"
+          style={{
+            left: `${Math.min(78, Math.max(8, preview.x))}%`,
+            top: `${Math.max(preview.y - 4, 6)}%`,
+            transform: `translate(${preview.x > 75 ? "-95%" : "-50%"}, -100%)`,
+            width: 250,
+            background: "#FFFFFF",
+            border: `1px solid ${C.line}`,
+            boxShadow: "0 8px 20px rgba(36,32,23,0.18)",
+            zIndex: 30,
+          }}
+        >
+          <button
+            onClick={onClosePreview}
+            className="absolute -top-2 -right-2 rounded-full flex items-center justify-center"
+            style={{ width: 22, height: 22, background: C.ink, color: "#fff" }}
+            aria-label="닫기"
+          >
+            <Icon name="x" width={13} height={13} />
+          </button>
+          <img
+            src={mainPhoto(preview)?.url}
+            alt={preview.name}
+            className="rounded-lg object-cover shrink-0"
+            style={{ width: 64, height: 64 }}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-sm font-semibold truncate" style={{ color: C.ink }}>{preview.name}</p>
+            <div className="mt-0.5"><Stars value={preview.rating} size={12} /></div>
+            <p className="text-xs mt-1 truncate" style={{ color: C.inkSoft }}>
+              {preview.category} · {signatureMenu(preview)?.name}
+            </p>
+            <p className="font-mono text-xs" style={{ color: C.navy }}>{won(signatureMenu(preview)?.price)}</p>
+            <button
+              onClick={() => onOpenDetail(preview.id)}
+              className="mt-1.5 text-xs font-medium underline decoration-dotted"
+              style={{ color: C.navy }}
+            >
+              상세보기
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div
+        className="absolute bottom-3 right-3 rounded-full px-2.5 py-1 text-xs font-mono"
+        style={{ background: "#FFFFFF", border: `1px solid ${C.line}`, color: C.inkFaint }}
+      >
+        MOCK MAP · 실측 아님
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Region breadcrumb
+---------------------------------------------------------------- */
+function RegionBreadcrumb({ gu, dong, onSetGu, onSetDong }) {
+  const [openGu, setOpenGu] = useState(false);
+  const [openDong, setOpenDong] = useState(false);
+  return (
+    <div className="flex items-center gap-1 flex-wrap text-sm">
+      <span className="font-medium" style={{ color: C.ink }}>서울특별시</span>
+      <span style={{ color: C.inkFaint }}>/</span>
+
+      <div className="relative">
+        <button
+          onClick={() => { setOpenGu((v) => !v); setOpenDong(false); }}
+          className="flex items-center gap-1 rounded-full px-2.5 py-1 font-medium transition-colors"
+          style={{ background: gu ? C.navyPale : C.paperAlt, color: gu ? C.navy : C.inkSoft }}
+        >
+          {gu || "구 선택"} <Icon name="chevronDown" width={13} height={13} />
+        </button>
+        {openGu && (
+          <div
+            className="absolute left-0 mt-1 rounded-lg py-1 z-40"
+            style={{ background: "#fff", border: `1px solid ${C.line}`, minWidth: 140, boxShadow: "0 6px 16px rgba(36,32,23,0.15)" }}
+          >
+            <button
+              className="block w-full text-left px-3 py-1.5 text-sm hover:bg-black/5"
+              onClick={() => { onSetGu(null); setOpenGu(false); }}
+              style={{ color: C.inkSoft }}
+            >
+              전체 구
+            </button>
+            {Object.keys(REGIONS).map((g) => (
+              <button
+                key={g}
+                className="block w-full text-left px-3 py-1.5 text-sm hover:bg-black/5"
+                onClick={() => { onSetGu(g); setOpenGu(false); }}
+                style={{ color: C.ink }}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {gu && (
+        <>
+          <span style={{ color: C.inkFaint }}>/</span>
+          <div className="relative">
+            <button
+              onClick={() => { setOpenDong((v) => !v); setOpenGu(false); }}
+              className="flex items-center gap-1 rounded-full px-2.5 py-1 font-medium transition-colors"
+              style={{ background: dong ? C.navyPale : C.paperAlt, color: dong ? C.navy : C.inkSoft }}
+            >
+              {dong || "동 선택"} <Icon name="chevronDown" width={13} height={13} />
+            </button>
+            {openDong && (
+              <div
+                className="absolute left-0 mt-1 rounded-lg py-1 z-40"
+                style={{ background: "#fff", border: `1px solid ${C.line}`, minWidth: 130, boxShadow: "0 6px 16px rgba(36,32,23,0.15)" }}
+              >
+                <button
+                  className="block w-full text-left px-3 py-1.5 text-sm hover:bg-black/5"
+                  onClick={() => { onSetDong(null); setOpenDong(false); }}
+                  style={{ color: C.inkSoft }}
+                >
+                  전체 동
+                </button>
+                {REGIONS[gu].map((d) => (
+                  <button
+                    key={d}
+                    className="block w-full text-left px-3 py-1.5 text-sm hover:bg-black/5"
+                    onClick={() => { onSetDong(d); setOpenDong(false); }}
+                    style={{ color: C.ink }}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Restaurant card
+---------------------------------------------------------------- */
+function RestaurantCard({ r, active, onHover, onSelect, onOpenDetail }) {
+  const mp = mainPhoto(r);
+  const sig = signatureMenu(r);
+  return (
+    <div
+      onMouseEnter={() => onHover(r.id)}
+      onMouseLeave={() => onHover(null)}
+      onClick={() => onSelect(r.id)}
+      className="rounded-xl p-2.5 flex gap-3 cursor-pointer transition-colors"
+      style={{
+        background: active ? C.navyPale : "#FFFFFF",
+        border: `1px solid ${active ? C.navySoft : C.line}`,
+      }}
+    >
+      <img src={mp?.url} alt={r.name} className="rounded-lg object-cover shrink-0" style={{ width: 84, height: 84 }} />
+      <div className="min-w-0 flex-1 flex flex-col">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-display font-semibold text-[15px] truncate" style={{ color: C.ink }}>{r.name}</p>
+          <RevisitBadge revisit={r.revisit} />
+        </div>
+        <p className="text-xs mt-0.5" style={{ color: C.inkSoft }}>{r.category} · {r.gu} {r.dong}</p>
+        <div className="mt-1"><Stars value={r.rating} size={13} /></div>
+        <div className="mt-auto flex items-center justify-between pt-1">
+          <p className="text-xs truncate" style={{ color: C.inkSoft }}>
+            {sig?.name} <span className="font-mono" style={{ color: C.navy }}>{won(sig?.price)}</span>
+          </p>
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenDetail(r.id); }}
+            className="text-xs font-medium shrink-0 underline decoration-dotted"
+            style={{ color: C.navy }}
+          >
+            상세보기 →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Filter panel
+---------------------------------------------------------------- */
+function FilterPanel({ filters, setFilters, onResetRegion, onClose }) {
+  const set = (k, v) => setFilters((f) => ({ ...f, [k]: v }));
+  return (
+    <div
+      className="absolute right-0 mt-2 rounded-xl p-4 z-40"
+      style={{ background: "#fff", border: `1px solid ${C.line}`, width: 300, boxShadow: "0 10px 24px rgba(36,32,23,0.18)" }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <p className="font-display font-semibold text-sm" style={{ color: C.ink }}>필터</p>
+        <button onClick={onClose} aria-label="닫기"><Icon name="x" width={16} height={16} style={{ color: C.inkFaint }} /></button>
+      </div>
+
+      <p className="text-xs font-medium mb-1.5" style={{ color: C.inkSoft }}>음식 카테고리</p>
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {["전체", ...CATEGORIES].map((c) => {
+          const val = c === "전체" ? null : c;
+          const on = filters.category === val;
+          return (
+            <button
+              key={c}
+              onClick={() => set("category", val)}
+              className="rounded-full px-2.5 py-1 text-xs font-medium"
+              style={{ background: on ? C.navy : C.paperAlt, color: on ? "#fff" : C.inkSoft }}
+            >
+              {c}
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="text-xs font-medium mb-1.5" style={{ color: C.inkSoft }}>개인 평점</p>
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {[{ v: 0, l: "전체" }, { v: 3, l: "3.0+" }, { v: 3.5, l: "3.5+" }, { v: 4, l: "4.0+" }, { v: 4.5, l: "4.5+" }].map((o) => (
+          <button
+            key={o.l}
+            onClick={() => set("minRating", o.v)}
+            className="rounded-full px-2.5 py-1 text-xs font-medium"
+            style={{ background: filters.minRating === o.v ? C.navy : C.paperAlt, color: filters.minRating === o.v ? "#fff" : C.inkSoft }}
+          >
+            {o.l}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-xs font-medium mb-1.5" style={{ color: C.inkSoft }}>가격대 (대표 메뉴 평균)</p>
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {PRICE_BUCKETS.map((b) => (
+          <button
+            key={b.key}
+            onClick={() => set("price", b.key === "all" ? null : b.key)}
+            className="rounded-full px-2.5 py-1 text-xs font-medium"
+            style={{ background: (filters.price || "all") === b.key ? C.navy : C.paperAlt, color: (filters.price || "all") === b.key ? "#fff" : C.inkSoft }}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-xs font-medium mb-1.5" style={{ color: C.inkSoft }}>재방문 의사</p>
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {[{ v: null, l: "전체" }, { v: "yes", l: "예" }, { v: "maybe", l: "글쎄요" }, { v: "no", l: "아니오" }].map((o) => (
+          <button
+            key={o.l}
+            onClick={() => set("revisit", o.v)}
+            className="rounded-full px-2.5 py-1 text-xs font-medium"
+            style={{ background: filters.revisit === o.v ? C.navy : C.paperAlt, color: filters.revisit === o.v ? "#fff" : C.inkSoft }}
+          >
+            {o.l}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between pt-2" style={{ borderTop: `1px solid ${C.line}` }}>
+        <button
+          onClick={() => { setFilters({ category: null, minRating: 0, price: null, revisit: null }); onResetRegion(); }}
+          className="text-xs font-medium"
+          style={{ color: C.clay }}
+        >
+          전체 초기화
+        </button>
+        <button onClick={onClose} className="text-xs font-medium rounded-full px-3 py-1.5" style={{ background: C.navy, color: "#fff" }}>
+          적용
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Add / Edit form modal
+---------------------------------------------------------------- */
+function RestaurantForm({ initial, onCancel, onSave }) {
+  const isEdit = !!initial;
+  const [name, setName] = useState(initial?.name || "");
+  const [address, setAddress] = useState(initial?.address || "");
+  const [gu, setGu] = useState(initial?.gu || "");
+  const [dong, setDong] = useState(initial?.dong || "");
+  const [category, setCategory] = useState(initial?.category || "");
+  const [visitDate, setVisitDate] = useState(initial?.visitDate || todayStr());
+  const [rating, setRating] = useState(initial?.rating ?? 4);
+  const [oneLiner, setOneLiner] = useState(initial?.oneLiner || "");
+  const [review, setReview] = useState(initial?.review || "");
+  const [revisit, setRevisit] = useState(initial?.revisit || "maybe");
+  const [menus, setMenus] = useState(initial?.menus?.length ? initial.menus : [{ id: uid("m"), name: "", price: "", isSignature: true }]);
+  const [photos, setPhotos] = useState(initial?.photos || []);
+  const [errors, setErrors] = useState({});
+  const fileRef = useRef(null);
+
+  const updateMenu = (id, patch) => setMenus((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
+  const addMenu = () => setMenus((ms) => [...ms, { id: uid("m"), name: "", price: "", isSignature: false }]);
+  const removeMenu = (id) => setMenus((ms) => (ms.length > 1 ? ms.filter((m) => m.id !== id) : ms));
+  const setSignature = (id) => setMenus((ms) => ms.map((m) => ({ ...m, isSignature: m.id === id })));
+
+  const handleFiles = (fileList) => {
+    const files = Array.from(fileList).slice(0, 8);
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPhotos((ps) => {
+          const next = [...ps, { id: uid("p"), url: reader.result, type: "음식", isMain: ps.length === 0 }];
+          return next;
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+  const setMainPhoto = (id) => setPhotos((ps) => ps.map((p) => ({ ...p, isMain: p.id === id })));
+  const setPhotoType = (id, type) => setPhotos((ps) => ps.map((p) => (p.id === id ? { ...p, type } : p)));
+  const removePhoto = (id) => setPhotos((ps) => {
+    const next = ps.filter((p) => p.id !== id);
+    if (next.length && !next.some((p) => p.isMain)) next[0].isMain = true;
+    return next;
+  });
+
+  const validate = () => {
+    const e = {};
+    if (!name.trim()) e.name = "식당명을 입력해 주세요.";
+    if (!address.trim()) e.address = "주소를 입력해 주세요.";
+    if (!gu) e.gu = "구를 선택해 주세요.";
+    if (!dong) e.dong = "동을 선택해 주세요.";
+    if (!category) e.category = "카테고리를 선택해 주세요.";
+    if (!visitDate) e.visitDate = "방문일을 입력해 주세요.";
+    const validMenus = menus.filter((m) => m.name.trim() && m.price !== "");
+    if (validMenus.length === 0) e.menus = "메뉴를 최소 1개 이상 입력해 주세요.";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const submit = () => {
+    if (!validate()) return;
+    const cleanMenus = menus.filter((m) => m.name.trim() && m.price !== "").map((m) => ({ ...m, price: Number(m.price) }));
+    const center = DONG_CENTERS[`${gu}-${dong}`] || { x: 50, y: 40 };
+    const payload = {
+      id: initial?.id || uid("r"),
+      name: name.trim(), address: address.trim(), gu, dong,
+      x: initial?.x ?? center.x + (Math.random() * 2 - 1),
+      y: initial?.y ?? center.y + (Math.random() * 2 - 1),
+      category, visitDate,
+      createdAt: initial?.createdAt || todayStr(), updatedAt: todayStr(),
+      rating: Number(rating), oneLiner: oneLiner.trim(), review: review.trim(), revisit,
+      menus: cleanMenus,
+      photos: photos.length ? photos : [photo(`${name || "new"}-${Date.now()}`, "음식", true)],
+    };
+    onSave(payload);
+  };
+
+  const field = (label, required, err, children) => (
+    <div className="mb-3">
+      <label className="text-xs font-medium mb-1 flex items-center gap-1" style={{ color: C.inkSoft }}>
+        {label}
+        {required && <span className="inline-block rounded-full" style={{ width: 4, height: 4, background: C.clay }} />}
+      </label>
+      {children}
+      {err && <p className="text-xs mt-1" style={{ color: C.clay }}>{err}</p>}
+    </div>
+  );
+
+  const inputStyle = { background: C.paper, border: `1px solid ${C.line}`, color: C.ink };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-stretch md:items-center justify-center" style={{ background: "rgba(36,32,23,0.45)" }}>
+      <div
+        className="w-full md:max-w-2xl md:rounded-2xl overflow-y-auto"
+        style={{ background: C.paper, maxHeight: "100vh" }}
+      >
+        <div className="sticky top-0 flex items-center justify-between px-5 py-4 z-10" style={{ background: C.paper, borderBottom: `1px solid ${C.line}` }}>
+          <p className="font-display text-lg font-semibold" style={{ color: C.ink }}>{isEdit ? "맛집 수정" : "맛집 추가"}</p>
+          <button onClick={onCancel} aria-label="닫기"><Icon name="x" width={20} height={20} style={{ color: C.inkFaint }} /></button>
+        </div>
+
+        <div className="px-5 py-4">
+          {field("식당명", true, errors.name, (
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 연남 온기"
+              className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle} />
+          ))}
+          {field("주소", true, errors.address, (
+            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="도로명 또는 지번 주소"
+              className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle} />
+          ))}
+
+          <div className="grid grid-cols-2 gap-3">
+            {field("구", true, errors.gu, (
+              <select value={gu} onChange={(e) => { setGu(e.target.value); setDong(""); }} className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle}>
+                <option value="">선택</option>
+                {Object.keys(REGIONS).map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+            ))}
+            {field("동", true, errors.dong, (
+              <select value={dong} onChange={(e) => setDong(e.target.value)} disabled={!gu} className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle}>
+                <option value="">선택</option>
+                {(REGIONS[gu] || []).map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {field("음식 카테고리", true, errors.category, (
+              <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle}>
+                <option value="">선택</option>
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            ))}
+            {field("방문일", true, errors.visitDate, (
+              <input type="date" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle} />
+            ))}
+          </div>
+
+          {field("메뉴 및 가격", true, errors.menus, (
+            <div className="space-y-2">
+              {menus.map((m) => (
+                <div key={m.id} className="flex items-center gap-2">
+                  <button
+                    onClick={() => setSignature(m.id)}
+                    title="대표 메뉴로 지정"
+                    className="shrink-0 rounded-full p-1.5"
+                    style={{ background: m.isSignature ? C.goldPale : C.paperAlt, color: m.isSignature ? C.gold : C.inkFaint }}
+                  >
+                    <Icon name="star" width={14} height={14} fill={m.isSignature ? "currentColor" : "none"} />
+                  </button>
+                  <input
+                    value={m.name} onChange={(e) => updateMenu(m.id, { name: e.target.value })}
+                    placeholder="메뉴명" className="flex-1 min-w-0 rounded-lg px-3 py-2 text-sm" style={inputStyle}
+                  />
+                  <input
+                    value={m.price} onChange={(e) => updateMenu(m.id, { price: e.target.value.replace(/[^0-9]/g, "") })}
+                    placeholder="가격" inputMode="numeric" className="w-24 rounded-lg px-3 py-2 text-sm font-mono" style={inputStyle}
+                  />
+                  <button onClick={() => removeMenu(m.id)} aria-label="메뉴 삭제" className="shrink-0 p-1.5">
+                    <Icon name="trash2" width={15} height={15} style={{ color: C.inkFaint }} />
+                  </button>
+                </div>
+              ))}
+              <button onClick={addMenu} className="text-xs font-medium rounded-full px-3 py-1.5 inline-flex items-center gap-1" style={{ background: C.paperAlt, color: C.navy }}>
+                <Icon name="plus" width={13} height={13} /> 메뉴 추가
+              </button>
+            </div>
+          ))}
+
+          {field("사진", false, null, (
+            <div>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {photos.map((p) => (
+                  <div key={p.id} className="relative rounded-lg overflow-hidden" style={{ width: 92, border: `1px solid ${C.line}` }}>
+                    <img src={p.url} alt="" style={{ width: 92, height: 70, objectFit: "cover" }} />
+                    <button
+                      onClick={() => removePhoto(p.id)}
+                      className="absolute top-1 right-1 rounded-full flex items-center justify-center"
+                      style={{ width: 18, height: 18, background: "rgba(36,32,23,0.7)", color: "#fff" }}
+                    >
+                      <Icon name="x" width={11} height={11} />
+                    </button>
+                    <button
+                      onClick={() => setMainPhoto(p.id)}
+                      className="absolute bottom-1 left-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                      style={{ background: p.isMain ? C.gold : "rgba(255,255,255,0.9)", color: p.isMain ? "#fff" : C.inkSoft }}
+                    >
+                      대표
+                    </button>
+                    <select
+                      value={p.type} onChange={(e) => setPhotoType(p.id, e.target.value)}
+                      className="w-full text-[10px] px-1 py-0.5"
+                      style={{ background: "#fff", borderTop: `1px solid ${C.line}`, color: C.inkSoft }}
+                    >
+                      {["음식", "메뉴판", "내부", "외관", "기타"].map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                ))}
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="flex flex-col items-center justify-center gap-1 rounded-lg"
+                  style={{ width: 92, height: 70, border: `1px dashed ${C.lineStrong}`, color: C.inkFaint }}
+                >
+                  <Icon name="imagePlus" width={18} height={18} />
+                  <span className="text-[10px]">사진 추가</span>
+                </button>
+                <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => e.target.files && handleFiles(e.target.files)} />
+              </div>
+              <p className="text-xs" style={{ color: C.inkFaint }}>여러 장 업로드 가능 · 하나를 대표 사진으로 지정하세요.</p>
+            </div>
+          ))}
+
+          {field(`개인 평점 (${Number(rating).toFixed(1)} / 5.0)`, true, null, (
+            <div className="flex items-center gap-3">
+              <input type="range" min="0" max="5" step="0.5" value={rating} onChange={(e) => setRating(e.target.value)} className="flex-1" />
+              <Stars value={Number(rating)} size={16} showValue={false} />
+            </div>
+          ))}
+
+          {field("한줄평", false, null, (
+            <input value={oneLiner} onChange={(e) => setOneLiner(e.target.value)} placeholder="이 맛집을 한 문장으로 표현하면?"
+              className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle} />
+          ))}
+          {field("상세 리뷰", false, null, (
+            <textarea value={review} onChange={(e) => setReview(e.target.value)} rows={4} placeholder="맛, 분위기, 서비스 등 자유롭게 기록해 보세요."
+              className="w-full rounded-lg px-3 py-2 text-sm resize-none" style={inputStyle} />
+          ))}
+
+          {field("재방문 의사", false, null, (
+            <div className="flex gap-2">
+              {[{ v: "yes", l: "또 갈래요" }, { v: "maybe", l: "글쎄요" }, { v: "no", l: "아마 안 갈래요" }].map((o) => (
+                <button
+                  key={o.v}
+                  onClick={() => setRevisit(o.v)}
+                  className="rounded-full px-3 py-1.5 text-xs font-medium"
+                  style={{ background: revisit === o.v ? C.navy : C.paperAlt, color: revisit === o.v ? "#fff" : C.inkSoft }}
+                >
+                  {o.l}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        <div className="sticky bottom-0 flex items-center justify-end gap-2 px-5 py-4" style={{ background: C.paper, borderTop: `1px solid ${C.line}` }}>
+          <button onClick={onCancel} className="rounded-full px-4 py-2 text-sm font-medium" style={{ color: C.inkSoft }}>취소</button>
+          <button onClick={submit} className="rounded-full px-4 py-2 text-sm font-medium inline-flex items-center gap-1.5" style={{ background: C.navy, color: "#fff" }}>
+            <Icon name="check" width={15} height={15} /> {isEdit ? "수정 완료" : "등록하기"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Detail panel
+---------------------------------------------------------------- */
+function DetailPanel({ r, onClose, onEdit, onDelete }) {
+  const [activePhoto, setActivePhoto] = useState(mainPhoto(r)?.id);
+  const current = r.photos.find((p) => p.id === activePhoto) || mainPhoto(r);
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(36,32,23,0.4)" }} onClick={onClose}>
+      <div
+        className="w-full md:w-[460px] h-full overflow-y-auto"
+        style={{ background: C.paper }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 flex items-center justify-between px-4 py-3 z-10" style={{ background: C.paper, borderBottom: `1px solid ${C.line}` }}>
+          <button onClick={onClose} className="flex items-center gap-1 text-sm font-medium" style={{ color: C.inkSoft }}>
+            <Icon name="arrowLeft" width={16} height={16} /> 닫기
+          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => onEdit(r)} className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium" style={{ background: C.navyPale, color: C.navy }}>
+              <Icon name="pencil" width={13} height={13} /> 수정
+            </button>
+            <button onClick={() => onDelete(r)} className="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium" style={{ background: C.clayPale, color: C.clay }}>
+              <Icon name="trash2" width={13} height={13} /> 삭제
+            </button>
+          </div>
+        </div>
+
+        <img src={current?.url} alt={r.name} className="w-full object-cover" style={{ height: 240 }} />
+        {r.photos.length > 1 && (
+          <div className="flex gap-2 px-4 py-2 overflow-x-auto">
+            {r.photos.map((p) => (
+              <button key={p.id} onClick={() => setActivePhoto(p.id)} className="shrink-0 rounded-lg overflow-hidden" style={{ border: p.id === activePhoto ? `2px solid ${C.navy}` : `1px solid ${C.line}` }}>
+                <img src={p.url} alt={p.type} style={{ width: 58, height: 44, objectFit: "cover" }} />
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="px-5 pt-3 pb-6">
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="font-display text-xl font-semibold" style={{ color: C.ink }}>{r.name}</h2>
+            <RevisitBadge revisit={r.revisit} />
+          </div>
+          <div className="flex items-center gap-2 mt-1.5">
+            <Stars value={r.rating} size={16} />
+            <span className="text-xs" style={{ color: C.inkFaint }}>·</span>
+            <span className="text-xs font-medium" style={{ color: C.inkSoft }}>{r.category}</span>
+            <span className="text-xs" style={{ color: C.inkFaint }}>·</span>
+            <span className="text-xs" style={{ color: C.inkSoft }}>{r.gu} {r.dong}</span>
+          </div>
+          {r.oneLiner && <p className="font-display italic text-sm mt-2" style={{ color: C.inkSoft }}>"{r.oneLiner}"</p>}
+
+          <div className="mt-5">
+            <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: C.inkFaint }}>메뉴</p>
+            <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${C.line}` }}>
+              {r.menus.map((m, i) => (
+                <div key={m.id} className="flex items-center justify-between px-3 py-2" style={{ background: i % 2 ? C.paperAlt : "#fff" }}>
+                  <span className="text-sm flex items-center gap-1.5" style={{ color: C.ink }}>
+                    {m.isSignature && <Icon name="star" width={13} height={13} fill={C.gold} stroke="none" />} {m.name}
+                  </span>
+                  <span className="text-sm font-mono" style={{ color: C.navy }}>{won(m.price)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: C.inkFaint }}>나의 평가</p>
+            <p className="text-sm leading-relaxed" style={{ color: C.ink }}>{r.review || "작성된 상세 리뷰가 없습니다."}</p>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-xl p-3" style={{ background: C.paperAlt }}>
+              <p className="text-xs font-semibold mb-1 flex items-center gap-1" style={{ color: C.inkFaint }}><Icon name="calendar" width={12} height={12} /> 방문일</p>
+              <p className="text-sm font-mono" style={{ color: C.ink }}>{r.visitDate}</p>
+            </div>
+            <div className="rounded-xl p-3" style={{ background: C.paperAlt }}>
+              <p className="text-xs font-semibold mb-1 flex items-center gap-1" style={{ color: C.inkFaint }}><Icon name="navigation" width={12} height={12} /> 위치</p>
+              <p className="text-sm" style={{ color: C.ink }}>{r.address}</p>
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-xl overflow-hidden" style={{ height: 140, border: `1px solid ${C.line}` }}>
+            <MockMap
+              restaurants={[r]}
+              selectedId={r.id}
+              hoveredId={null}
+              onSelectMarker={() => {}}
+              focus={{ x: r.x, y: r.y }}
+              previewId={null}
+              onClosePreview={() => {}}
+              onOpenDetail={() => {}}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   Confirm dialog
+---------------------------------------------------------------- */
+function ConfirmDialog({ target, onCancel, onConfirm }) {
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center px-4" style={{ background: "rgba(36,32,23,0.5)" }}>
+      <div className="rounded-2xl p-5 w-full" style={{ background: "#fff", maxWidth: 340 }}>
+        <p className="font-display font-semibold text-base mb-1" style={{ color: C.ink }}>맛집 기록을 삭제할까요?</p>
+        <p className="text-sm mb-4" style={{ color: C.inkSoft }}>'{target.name}' 기록이 영구히 삭제되며 되돌릴 수 없습니다.</p>
+        <div className="flex justify-end gap-2">
+          <button onClick={onCancel} className="rounded-full px-4 py-2 text-sm font-medium" style={{ color: C.inkSoft }}>취소</button>
+          <button onClick={onConfirm} className="rounded-full px-4 py-2 text-sm font-medium" style={{ background: C.clay, color: "#fff" }}>삭제</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   App
+---------------------------------------------------------------- */
+function FoodArchiveApp() {
+  const [restaurants, setRestaurants] = useState(initialRestaurants);
+  const [gu, setGu] = useState(null);
+  const [dong, setDong] = useState(null);
+  const [query, setQuery] = useState("");
+  const [filters, setFilters] = useState({ category: null, minRating: 0, price: null, revisit: null });
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  const [selectedId, setSelectedId] = useState(null);
+  const [hoveredId, setHoveredId] = useState(null);
+  const [previewId, setPreviewId] = useState(null);
+  const [detailId, setDetailId] = useState(null);
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
+
+  const filtered = useMemo(() => {
+    return restaurants.filter((r) => {
+      if (gu && r.gu !== gu) return false;
+      if (dong && r.dong !== dong) return false;
+      if (filters.category && r.category !== filters.category) return false;
+      if (filters.minRating && r.rating < filters.minRating) return false;
+      if (filters.price && priceBucketOf(avgPrice(r)) !== filters.price) return false;
+      if (filters.revisit && r.revisit !== filters.revisit) return false;
+      if (query.trim()) {
+        const q = query.trim().toLowerCase();
+        const hay = [r.name, r.gu, r.dong, ...r.menus.map((m) => m.name)].join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [restaurants, gu, dong, filters, query]);
+
+  const focus = dong ? DONG_CENTERS[`${gu}-${dong}`] : gu
+    ? (() => {
+        const pts = (REGIONS[gu] || []).map((d) => DONG_CENTERS[`${gu}-${d}`]).filter(Boolean);
+        if (!pts.length) return null;
+        return { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length };
+      })()
+    : null;
+
+  const detailRestaurant = restaurants.find((r) => r.id === detailId);
+  const activeCount = Object.values(filters).filter((v) => v !== null && v !== 0).length;
+
+  const selectMarker = (id) => { setSelectedId(id); setPreviewId(id); };
+  const openDetail = (id) => { setDetailId(id); setPreviewId(null); };
+
+  const saveRestaurant = (payload) => {
+    setRestaurants((rs) => {
+      const exists = rs.some((r) => r.id === payload.id);
+      return exists ? rs.map((r) => (r.id === payload.id ? payload : r)) : [payload, ...rs];
+    });
+    setFormOpen(false);
+    setEditing(null);
+    setDetailId(payload.id);
+  };
+
+  const confirmDelete = () => {
+    setRestaurants((rs) => rs.filter((r) => r.id !== deleteTarget.id));
+    if (detailId === deleteTarget.id) setDetailId(null);
+    setDeleteTarget(null);
+  };
+
+  return (
+    <div className="w-full h-screen flex flex-col font-body" style={{ background: C.paper, color: C.ink }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        .font-display { font-family: 'Fraunces', serif; }
+        .font-body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        * { box-sizing: border-box; }
+        input, select, textarea { outline: none; font-family: 'Inter', sans-serif; }
+        input:focus, select:focus, textarea:focus { border-color: ${C.navy} !important; }
+        input[type=range] { accent-color: ${C.navy}; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-thumb { background: ${C.lineStrong}; border-radius: 8px; }
+      `}</style>
+
+      {/* header */}
+      <header className="shrink-0 px-4 md:px-6 py-3 flex flex-col gap-2.5" style={{ borderBottom: `1px solid ${C.line}`, background: C.paper }}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="rounded-lg flex items-center justify-center font-display font-semibold" style={{ width: 32, height: 32, background: C.navy, color: "#fff", fontSize: 14 }}>
+              미
+            </div>
+            <div>
+              <p className="font-display font-semibold text-base leading-none" style={{ color: C.ink }}>미식일지</p>
+              <p className="text-[11px] leading-none mt-0.5" style={{ color: C.inkFaint }}>Personal Food Archive</p>
+            </div>
+          </div>
+
+          <div className="flex-1 min-w-[200px] flex items-center gap-2 max-w-md">
+            <div className="flex-1 flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: C.paperAlt }}>
+              <Icon name="search" width={15} height={15} style={{ color: C.inkFaint }} />
+              <input
+                value={query} onChange={(e) => setQuery(e.target.value)}
+                placeholder="식당명, 지역, 메뉴로 검색"
+                className="flex-1 bg-transparent text-sm"
+                style={{ color: C.ink }}
+              />
+              {query && <button onClick={() => setQuery("")}><Icon name="x" width={14} height={14} style={{ color: C.inkFaint }} /></button>}
+            </div>
+            <div className="relative">
+              <button
+                onClick={() => setFilterOpen((v) => !v)}
+                className="flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium relative"
+                style={{ background: activeCount ? C.navyPale : C.paperAlt, color: activeCount ? C.navy : C.inkSoft }}
+              >
+                <Icon name="slidersHorizontal" width={14} height={14} /> 필터
+                {activeCount > 0 && (
+                  <span className="rounded-full flex items-center justify-center text-[10px] font-semibold" style={{ width: 15, height: 15, background: C.navy, color: "#fff" }}>
+                    {activeCount}
+                  </span>
+                )}
+              </button>
+              {filterOpen && (
+                <FilterPanel
+                  filters={filters}
+                  setFilters={setFilters}
+                  onResetRegion={() => { setGu(null); setDong(null); }}
+                  onClose={() => setFilterOpen(false)}
+                />
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={() => { setEditing(null); setFormOpen(true); }}
+            className="shrink-0 flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium"
+            style={{ background: C.navy, color: "#fff" }}
+          >
+            <Icon name="plus" width={15} height={15} /> 맛집 추가
+          </button>
+        </div>
+
+        <RegionBreadcrumb
+          gu={gu} dong={dong}
+          onSetGu={(g) => { setGu(g); setDong(null); }}
+          onSetDong={(d) => setDong(d)}
+        />
+      </header>
+
+      {/* main */}
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row relative">
+        <div className="flex-1 min-h-0 relative">
+          <MockMap
+            restaurants={filtered}
+            selectedId={selectedId}
+            hoveredId={hoveredId}
+            onSelectMarker={selectMarker}
+            focus={focus}
+            previewId={previewId}
+            onClosePreview={() => setPreviewId(null)}
+            onOpenDetail={openDetail}
+          />
+        </div>
+
+        {/* desktop list */}
+        <div className="hidden lg:flex flex-col shrink-0" style={{ width: 380, borderLeft: `1px solid ${C.line}`, background: C.paper }}>
+          <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.line}` }}>
+            <p className="text-sm font-semibold" style={{ color: C.ink }}>
+              {dong ? `${gu} ${dong}` : gu || "서울 전체"}
+            </p>
+            <p className="text-xs font-mono" style={{ color: C.inkFaint }}>{filtered.length}곳</p>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {filtered.length === 0 ? (
+              <EmptyState onReset={() => { setGu(null); setDong(null); setFilters({ category: null, minRating: 0, price: null, revisit: null }); setQuery(""); }} />
+            ) : (
+              filtered.map((r) => (
+                <RestaurantCard
+                  key={r.id} r={r}
+                  active={r.id === selectedId || r.id === hoveredId}
+                  onHover={setHoveredId}
+                  onSelect={selectMarker}
+                  onOpenDetail={openDetail}
+                />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* mobile bottom sheet */}
+        <div
+          className="lg:hidden absolute left-0 right-0 bottom-0 rounded-t-2xl transition-transform duration-300"
+          style={{
+            background: C.paper,
+            borderTop: `1px solid ${C.line}`,
+            boxShadow: "0 -6px 20px rgba(36,32,23,0.15)",
+            height: "72%",
+            transform: sheetExpanded ? "translateY(0)" : "translateY(calc(100% - 56px))",
+          }}
+        >
+          <button
+            onClick={() => setSheetExpanded((v) => !v)}
+            className="w-full flex flex-col items-center pt-2 pb-2.5"
+          >
+            <span className="rounded-full" style={{ width: 36, height: 4, background: C.lineStrong }} />
+            <span className="text-xs font-semibold mt-1.5 flex items-center gap-1" style={{ color: C.ink }}>
+              {sheetExpanded ? <Icon name="mapIcon" width={13} height={13} /> : <Icon name="listIcon" width={13} height={13} />}
+              {sheetExpanded ? "지도 보기" : `리스트 보기 (${filtered.length})`}
+            </span>
+          </button>
+          <div className="overflow-y-auto px-3 pb-4" style={{ height: "calc(100% - 48px)" }}>
+            <p className="text-sm font-semibold px-1 pb-2" style={{ color: C.ink }}>
+              {dong ? `${gu} ${dong}` : gu || "서울 전체"}
+            </p>
+            <div className="space-y-2">
+              {filtered.length === 0 ? (
+                <EmptyState onReset={() => { setGu(null); setDong(null); setFilters({ category: null, minRating: 0, price: null, revisit: null }); setQuery(""); }} />
+              ) : (
+                filtered.map((r) => (
+                  <RestaurantCard
+                    key={r.id} r={r}
+                    active={r.id === selectedId}
+                    onHover={() => {}}
+                    onSelect={(id) => { selectMarker(id); setSheetExpanded(false); }}
+                    onOpenDetail={openDetail}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {detailRestaurant && (
+        <DetailPanel
+          r={detailRestaurant}
+          onClose={() => setDetailId(null)}
+          onEdit={(r) => { setEditing(r); setDetailId(null); setFormOpen(true); }}
+          onDelete={(r) => setDeleteTarget(r)}
+        />
+      )}
+
+      {formOpen && (
+        <RestaurantForm
+          initial={editing}
+          onCancel={() => { setFormOpen(false); setEditing(null); }}
+          onSave={saveRestaurant}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmDialog target={deleteTarget} onCancel={() => setDeleteTarget(null)} onConfirm={confirmDelete} />
+      )}
+    </div>
+  );
+}
+
+function EmptyState({ onReset }) {
+  return (
+    <div className="flex flex-col items-center text-center py-10 px-4">
+      <div className="rounded-full flex items-center justify-center mb-3" style={{ width: 44, height: 44, background: C.paperAlt }}>
+        <Icon name="utensils" width={19} height={19} style={{ color: C.inkFaint }} />
+      </div>
+      <p className="text-sm font-semibold" style={{ color: C.ink }}>이 조건에 맞는 맛집이 없어요</p>
+      <p className="text-xs mt-1 mb-3" style={{ color: C.inkSoft }}>지역이나 필터를 바꾸거나, 새 맛집을 기록해 보세요.</p>
+      <button onClick={onReset} className="text-xs font-medium rounded-full px-3 py-1.5" style={{ background: C.navyPale, color: C.navy }}>
+        전체 조건 초기화
+      </button>
+    </div>
+  );
+}
+
+const rootEl = document.getElementById("root");
+ReactDOM.createRoot(rootEl).render(<FoodArchiveApp />);
+</script>
+<script>
+  var src = document.getElementById('app-source').textContent;
+  var compiled = Babel.transform(src, { presets: [['react', { runtime: 'classic' }]] }).code;
+  (new Function('React', 'ReactDOM', 'document', 'window', compiled))(React, ReactDOM, document, window);
+</script>
+</body>
+</html>
