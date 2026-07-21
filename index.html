@@ -16,7 +16,7 @@
 <body>
 <div id="root"></div>
 <script type="text/plain" id="app-source">
-const { useState, useMemo, useRef } = React;
+const { useState, useMemo, useRef, useEffect } = React;
 
 const ICON_PATHS = {
   mapPin: <><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z" /><circle cx="12" cy="10" r="2.4" /></>,
@@ -192,6 +192,20 @@ const initialRestaurants = [
     photos: [photo("sinsa-yamazaki-1", "음식", true), photo("sinsa-yamazaki-2", "외관", false)],
   },
 ];
+
+const STORAGE_KEY = "misikilji-restaurants-v1";
+function loadRestaurants() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length) return parsed;
+    }
+  } catch (e) {
+    /* ignore corrupt storage and fall back to sample data */
+  }
+  return initialRestaurants;
+}
 
 /* ---------------------------------------------------------------
    Helpers
@@ -981,7 +995,7 @@ function ConfirmDialog({ target, onCancel, onConfirm }) {
    App
 ---------------------------------------------------------------- */
 function FoodArchiveApp() {
-  const [restaurants, setRestaurants] = useState(initialRestaurants);
+  const [restaurants, setRestaurants] = useState(loadRestaurants);
   const [gu, setGu] = useState(null);
   const [dong, setDong] = useState(null);
   const [query, setQuery] = useState("");
@@ -1025,6 +1039,23 @@ function FoodArchiveApp() {
 
   const detailRestaurant = restaurants.find((r) => r.id === detailId);
   const activeCount = Object.values(filters).filter((v) => v !== null && v !== 0).length;
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(restaurants));
+    } catch (e) {
+      /* storage full or unavailable — app still works, just won't persist */
+    }
+  }, [restaurants]);
+
+  const resetToSampleData = () => {
+    if (!window.confirm("현재 기록을 모두 지우고 샘플 데이터로 되돌릴까요? 이 작업은 되돌릴 수 없습니다.")) return;
+    setRestaurants(initialRestaurants);
+    setSelectedId(null);
+    setDetailId(null);
+    setPreviewId(null);
+  };
+
 
   const selectMarker = (id) => { setSelectedId(id); setPreviewId(id); };
   const openDetail = (id) => { setDetailId(id); setPreviewId(null); };
@@ -1145,7 +1176,12 @@ function FoodArchiveApp() {
             <p className="text-sm font-semibold" style={{ color: C.ink }}>
               {dong ? `${gu} ${dong}` : gu || "서울 전체"}
             </p>
-            <p className="text-xs font-mono" style={{ color: C.inkFaint }}>{filtered.length}곳</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-mono" style={{ color: C.inkFaint }}>{filtered.length}곳</p>
+              <button onClick={resetToSampleData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.inkFaint }}>
+                샘플로 초기화
+              </button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {filtered.length === 0 ? (
@@ -1186,9 +1222,14 @@ function FoodArchiveApp() {
             </span>
           </button>
           <div className="overflow-y-auto px-3 pb-4" style={{ height: "calc(100% - 48px)" }}>
-            <p className="text-sm font-semibold px-1 pb-2" style={{ color: C.ink }}>
-              {dong ? `${gu} ${dong}` : gu || "서울 전체"}
-            </p>
+            <div className="flex items-center justify-between px-1 pb-2">
+              <p className="text-sm font-semibold" style={{ color: C.ink }}>
+                {dong ? `${gu} ${dong}` : gu || "서울 전체"}
+              </p>
+              <button onClick={resetToSampleData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.inkFaint }}>
+                샘플로 초기화
+              </button>
+            </div>
             <div className="space-y-2">
               {filtered.length === 0 ? (
                 <EmptyState onReset={() => { setGu(null); setDong(null); setFilters({ category: null, minRating: 0, price: null, revisit: null }); setQuery(""); }} />
