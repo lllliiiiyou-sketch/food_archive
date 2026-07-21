@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>개똥철학의 미식</title>
+<title>미식일지 - Personal Food Archive</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -201,7 +201,11 @@ const STORAGE_KEY = "misikilji-restaurants-v1";
 ================================================================= */
 const JSONBIN_BIN_ID = "6a5efae9da38895dfe794b27";
 const JSONBIN_API_KEY = "$2a$10$yEThl3QV/nFxUuYiTBxilOdcXh9hT77MlXfxzRnUAWDMPLoOJsCc2";
-const CLOUD_CONFIGURED = JSONBIN_BIN_ID !== "6a5efae9da38895dfe794b27" && JSONBIN_API_KEY !== "$2a$10$yEThl3QV/nFxUuYiTBxilOdcXh9hT77MlXfxzRnUAWDMPLoOJsCc2";
+const CLOUD_CONFIGURED =
+  !JSONBIN_BIN_ID.includes("PASTE_YOUR") &&
+  !JSONBIN_API_KEY.includes("PASTE_YOUR") &&
+  JSONBIN_BIN_ID.trim().length > 5 &&
+  JSONBIN_API_KEY.trim().length > 5;
 const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
 /* =================================================================
