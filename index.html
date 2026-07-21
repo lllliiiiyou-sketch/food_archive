@@ -232,7 +232,11 @@ async function fetchCloudRestaurants() {
   });
   if (!res.ok) throw new Error("cloud fetch failed");
   const json = await res.json();
-  return Array.isArray(json.record) ? json.record : null;
+  // Accept both the new wrapped format ({ restaurants: [...] }) and the
+  // old bare-array format (in case the bin was created directly with an array).
+  if (Array.isArray(json.record)) return json.record;
+  if (json.record && Array.isArray(json.record.restaurants)) return json.record.restaurants;
+  return null;
 }
 
 async function saveCloudRestaurants(list) {
@@ -240,7 +244,7 @@ async function saveCloudRestaurants(list) {
   const res = await fetch(JSONBIN_URL, {
     method: "PUT",
     headers: { "Content-Type": "application/json", "X-Master-Key": JSONBIN_API_KEY },
-    body: JSON.stringify(list),
+    body: JSON.stringify({ restaurants: list }),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
