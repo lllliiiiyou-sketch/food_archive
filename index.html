@@ -299,17 +299,17 @@ const initialRestaurants = [
 
 const STORAGE_KEY = "misikilji-restaurants-v1";
 
+
 /* =================================================================
-   공유 저장소 설정 (JSONBin.io) — Bin ID / X-Master-Key는 이미 채워져 있습니다.
+   공유 저장소 설정 (Firebase Realtime Database) — 방문자 전원이 같은 데이터를
+   보게 하려면 아래 값을 본인의 Firebase Realtime Database URL로 채워주세요.
+   설정 방법은 대화창 안내 참고.
+   예: "https://my-project-default-rtdb.firebaseio.com"
 ================================================================= */
-const JSONBIN_BIN_ID = "6a5efae9da38895dfe794b27";
-const JSONBIN_API_KEY = "$2a$10$yEThl3QV/nFxUuYiTBxilOdcXh9hT77MlXfxzRnUAWDMPLoOJsCc2";
+const FIREBASE_DB_URL = "https://food-dj-default-rtdb.asia-southeast1.firebasedatabase.app";
 const CLOUD_CONFIGURED =
-  !JSONBIN_BIN_ID.includes("PASTE_YOUR") &&
-  !JSONBIN_API_KEY.includes("PASTE_YOUR") &&
-  JSONBIN_BIN_ID.trim().length > 5 &&
-  JSONBIN_API_KEY.trim().length > 5;
-const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+  !FIREBASE_DB_URL.includes("PASTE_YOUR") && FIREBASE_DB_URL.trim().length > 10;
+const FIREBASE_RESTAURANTS_URL = `${FIREBASE_DB_URL.replace(/\/$/, "")}/restaurants.json`;
 
 /* =================================================================
    실제 지도 연동 (Kakao Maps) — 선택 사항입니다. 비워두면 기존처럼
@@ -337,26 +337,24 @@ function hashPasscode(str) {
 
 async function fetchCloudRestaurants() {
   if (!CLOUD_CONFIGURED) return null;
-  const res = await fetch(`${JSONBIN_URL}/latest`, {
-    headers: { "X-Master-Key": JSONBIN_API_KEY },
-    cache: "no-store",
-  });
+  const res = await fetch(FIREBASE_RESTAURANTS_URL, { cache: "no-store" });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`cloud fetch failed (${res.status}) ${detail}`);
   }
-  const json = await res.json();
-  if (Array.isArray(json.record)) return json.record; // backward compatible with a bare array bin
-  if (json.record && Array.isArray(json.record.restaurants)) return json.record.restaurants;
+  const data = await res.json();
+  if (data === null) return []; // path has no data yet — perfectly normal, not an error
+  if (Array.isArray(data)) return data;
+  if (typeof data === "object") return Object.values(data); // Firebase can store sparse lists as objects
   return [];
 }
 
 async function saveCloudRestaurants(list) {
   if (!CLOUD_CONFIGURED) return;
-  const res = await fetch(JSONBIN_URL, {
+  const res = await fetch(FIREBASE_RESTAURANTS_URL, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", "X-Master-Key": JSONBIN_API_KEY },
-    body: JSON.stringify({ restaurants: list }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(list),
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
@@ -1012,7 +1010,7 @@ function RestaurantForm({ initial, onCancel, onSave }) {
   const setSignature = (id) => setMenus((ms) => ms.map((m) => ({ ...m, isSignature: m.id === id })));
 
   const handleFiles = (fileList) => {
-    const remaining = Math.max(0, 3 - photos.length);
+    const remaining = Math.max(0, 6 - photos.length);
     const files = Array.from(fileList).slice(0, remaining);
     files.forEach((file) => {
       compressImageFile(file).then((dataUrl) => {
@@ -1209,7 +1207,7 @@ function RestaurantForm({ initial, onCancel, onSave }) {
                 </button>
                 <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => e.target.files && handleFiles(e.target.files)} />
               </div>
-              <p className="text-xs" style={{ color: C.inkFaint }}>최대 3장 업로드 가능 · 하나를 대표 사진으로 지정하세요.</p>
+              <p className="text-xs" style={{ color: C.inkFaint }}>최대 6장 업로드 가능 · 하나를 대표 사진으로 지정하세요.</p>
             </div>
           ))}
 
@@ -1516,21 +1514,13 @@ function FoodArchiveApp() {
   const updateRestaurants = (next) => {
     setRestaurants(next);
     if (CLOUD_CONFIGURED) {
-      const estimatedKb = Math.round(new Blob([JSON.stringify(next)]).size / 1024);
-      if (estimatedKb > 95) {
-        setCloudStatus("error");
-        window.alert(
-          `공유 저장소 용량(100KB)에 거의 다 찼어요 (현재 약 ${estimatedKb}KB). 방금 변경한 내용은 이 브라우저에만 저장돼요.\n\n사진을 줄이거나(대표 사진 1장만 남기기), 오래된 기록의 사진을 지우면 다시 공유 저장이 가능해요.`
-        );
-        return;
-      }
       saveCloudRestaurants(next)
         .then(() => setCloudStatus("ready"))
         .catch((err) => {
           setCloudStatus("error");
           const isSizeError = /size|limit|blob|429|413/i.test(err.message);
           const msg = isSizeError
-            ? "공유 저장소 용량을 초과했어요. 사진 개수를 줄이거나 사진 없이 저장해 보세요. 방금 변경한 내용은 이 브라우저에만 남아있어요."
+            ? "공유 저장소 용량을 초과했어요. 방금 변경한 내용은 이 브라우저에만 남아있어요."
             : "공유 저장소에 저장하지 못했어요. 방금 변경한 내용은 이 브라우저에만 남아있고, 새로고침하거나 다른 사람이 보면 반영되지 않을 수 있어요.";
           window.alert(msg + "\n\n(개발자용 상세정보: " + err.message + ")");
         });
@@ -1691,12 +1681,12 @@ function FoodArchiveApp() {
 
       {cloudStatus === "unconfigured" && (
         <div className="px-4 py-2 text-xs font-medium" style={{ background: C.goldPale, color: C.gold }}>
-          공유 저장소가 아직 설정되지 않았어요. 지금은 이 브라우저에만 저장됩니다 — 방문자 전원에게 최신 목록을 보여주려면 코드 상단의 JSONBIN_BIN_ID / JSONBIN_API_KEY 를 채워주세요.
+          공유 저장소가 아직 설정되지 않았어요. 지금은 이 브라우저에만 저장됩니다 — 방문자 전원에게 최신 목록을 보여주려면 코드 상단의 FIREBASE_DB_URL 을 채워주세요.
         </div>
       )}
       {cloudStatus === "error" && (
         <div className="px-4 py-2 text-xs font-medium" style={{ background: C.clayPale, color: C.clay }}>
-          공유 저장소에 연결하지 못했어요. 방금 한 변경사항은 이 브라우저에만 저장되어 있어요. 인터넷 연결과 JSONBin 설정을 확인해 주세요.
+          공유 저장소에 연결하지 못했어요. 방금 한 변경사항은 이 브라우저에만 저장되어 있어요. 인터넷 연결과 Firebase 설정을 확인해 주세요.
         </div>
       )}
 
