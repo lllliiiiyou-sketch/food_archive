@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>미식노트 - 나만의 맛집 기록</title>
+<title>대동여지도 - 나만의 맛집 기록</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
   html, body, #root { height: 100%; margin: 0; padding: 0; }
+  html, body { height: 100dvh; overflow: hidden; overscroll-behavior: none; }
   body { background: #FBF8F2; }
 </style>
 </head>
@@ -532,7 +533,7 @@ function MockMap({ restaurants, selectedId, hoveredId, onSelectMarker, focus, pr
                 top: `${r.y}%`,
                 width: size,
                 height: size,
-                transform: "translate(-50%,-100%)",
+                transform: "translate(-50%,-50%)",
                 background: categoryColor(r.category),
                 border: `2.5px solid ${active ? C.gold : "#FFFFFF"}`,
                 boxShadow: "0 1px 4px rgba(36,32,23,0.35)",
@@ -671,12 +672,12 @@ function KakaoMap({ restaurants, selectedId, hoveredId, onSelectMarker, focus, p
       const el = document.createElement("div");
       el.innerHTML = pinSvgHtml(categoryColor(r.category), size, active);
       el.style.cursor = "pointer";
-      el.style.transform = "translate(-50%, -100%)";
       el.addEventListener("click", () => onSelectMarker(r.id));
       const overlay = new kakao.maps.CustomOverlay({
         position: new kakao.maps.LatLng(ll.lat, ll.lng),
         content: el,
-        yAnchor: 1,
+        xAnchor: 0.5,
+        yAnchor: 0.5,
         zIndex: active ? 20 : 10,
       });
       overlay.setMap(mapRef.current);
@@ -1642,7 +1643,7 @@ function FoodArchiveApp() {
         setPreviewId(null);
         window.alert(`${parsed.length}곳의 맛집 기록을 불러왔습니다.`);
       } catch (e) {
-        window.alert("파일을 읽을 수 없어요. 미식노트에서 내보낸 JSON 백업 파일인지 확인해 주세요.");
+        window.alert("파일을 읽을 수 없어요. 대동여지도에서 내보낸 JSON 백업 파일인지 확인해 주세요.");
       }
     };
     reader.readAsText(file);
@@ -1670,7 +1671,7 @@ function FoodArchiveApp() {
 
 
   return (
-    <div className="w-full h-screen flex flex-col font-body" style={{ background: C.paper, color: C.ink }}>
+    <div className="w-full h-screen flex flex-col font-body" style={{ background: C.paper, color: C.ink, height: "100dvh" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
         .font-display { font-family: 'Noto Sans KR', 'Inter', sans-serif; letter-spacing: -0.01em; }
@@ -1689,10 +1690,10 @@ function FoodArchiveApp() {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2 shrink-0">
             <div className="rounded-lg flex items-center justify-center font-display font-semibold" style={{ width: 32, height: 32, background: C.navy, color: "#fff", fontSize: 14 }}>
-              미
+              대
             </div>
             <div>
-              <p className="font-display font-semibold text-base leading-none" style={{ color: C.ink }}>미식노트</p>
+              <p className="font-display font-semibold text-base leading-none" style={{ color: C.ink }}>대동여지도</p>
               <p className="text-[11px] leading-none mt-0.5" style={{ color: C.inkFaint }}>나만의 맛집 기록</p>
             </div>
           </div>
