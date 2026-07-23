@@ -196,14 +196,16 @@ const initialRestaurants = [
 const STORAGE_KEY = "misikilji-restaurants-v1";
 
 /* =================================================================
-   공유 저장소 설정 (jsonblob.com) — 가입도 대시보드 설정도 필요 없습니다.
-   대화창 안내대로 터미널에서 curl 명령어 한 번만 실행하면 나오는 ID를
-   아래에 붙여넣으세요.
-   예: "5226571730043f8b22dadc20"
+   공유 저장소 설정 (JSONBin.io) — Bin ID / X-Master-Key는 이미 채워져 있습니다.
 ================================================================= */
-const JSONBLOB_ID = "019f8c9e-5155-75b5-a40a-aab234b6050a";
-const CLOUD_CONFIGURED = !JSONBLOB_ID.includes("PASTE_YOUR") && JSONBLOB_ID.trim().length > 5;
-const JSONBLOB_URL = `https://jsonblob.com/api/jsonBlob/${JSONBLOB_ID}`;
+const JSONBIN_BIN_ID = "6a5efae9da38895dfe794b27";
+const JSONBIN_API_KEY = "$2a$10$yEThl3QV/nFxUuYiTBxilOdcXh9hT77MlXfxzRnUAWDMPLoOJsCc2";
+const CLOUD_CONFIGURED =
+  !JSONBIN_BIN_ID.includes("PASTE_YOUR") &&
+  !JSONBIN_API_KEY.includes("PASTE_YOUR") &&
+  JSONBIN_BIN_ID.trim().length > 5 &&
+  JSONBIN_API_KEY.trim().length > 5;
+const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
 /* =================================================================
    글쓰기 잠금 — 코드에는 비밀번호 원문이 아니라 변환된 값만 저장됩니다.
@@ -223,25 +225,25 @@ function hashPasscode(str) {
 
 async function fetchCloudRestaurants() {
   if (!CLOUD_CONFIGURED) return null;
-  const res = await fetch(JSONBLOB_URL, {
-    headers: { Accept: "application/json" },
+  const res = await fetch(`${JSONBIN_URL}/latest`, {
+    headers: { "X-Master-Key": JSONBIN_API_KEY },
     cache: "no-store",
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     throw new Error(`cloud fetch failed (${res.status}) ${detail}`);
   }
-  const data = await res.json();
-  if (Array.isArray(data)) return data; // backward compatible with a bare array blob
-  if (data && Array.isArray(data.restaurants)) return data.restaurants;
+  const json = await res.json();
+  if (Array.isArray(json.record)) return json.record; // backward compatible with a bare array bin
+  if (json.record && Array.isArray(json.record.restaurants)) return json.record.restaurants;
   return [];
 }
 
 async function saveCloudRestaurants(list) {
   if (!CLOUD_CONFIGURED) return;
-  const res = await fetch(JSONBLOB_URL, {
+  const res = await fetch(JSONBIN_URL, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers: { "Content-Type": "application/json", "X-Master-Key": JSONBIN_API_KEY },
     body: JSON.stringify({ restaurants: list }),
   });
   if (!res.ok) {
@@ -273,6 +275,40 @@ const avgPrice = (r) => (r.menus.length ? r.menus.reduce((s, m) => s + Number(m.
 const priceBucketOf = (avg) => (avg <= 10000 ? "u1" : avg <= 20000 ? "1-2" : avg <= 30000 ? "2-3" : "o3");
 const uid = (p) => `${p}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
 const todayStr = () => new Date().toISOString().slice(0, 10);
+
+function compressImageFile(file, maxDimension = 640, quality = 0.6) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxDimension) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else if (height > maxDimension) {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        try {
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        } catch (e) {
+          resolve(reader.result); // fallback to original if canvas export fails
+        }
+      };
+      img.onerror = () => resolve(reader.result);
+      img.src = reader.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
 
 function Stars({ value, size = 15, showValue = true }) {
   const pct = Math.max(0, Math.min(100, (value / 5) * 100));
@@ -700,14 +736,12 @@ function RestaurantForm({ initial, onCancel, onSave }) {
   const handleFiles = (fileList) => {
     const files = Array.from(fileList).slice(0, 8);
     files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
+      compressImageFile(file, 640, 0.6).then((dataUrl) => {
         setPhotos((ps) => {
-          const next = [...ps, { id: uid("p"), url: reader.result, type: "음식", isMain: ps.length === 0 }];
+          const next = [...ps, { id: uid("p"), url: dataUrl, type: "음식", isMain: ps.length === 0 }];
           return next;
         });
-      };
-      reader.readAsDataURL(file);
+      });
     });
   };
   const setMainPhoto = (id) => setPhotos((ps) => ps.map((p) => ({ ...p, isMain: p.id === id })));
@@ -1123,9 +1157,11 @@ function FoodArchiveApp() {
         .then(() => setCloudStatus("ready"))
         .catch((err) => {
           setCloudStatus("error");
-          window.alert(
-            "공유 저장소에 저장하지 못했어요. 방금 변경한 내용은 이 브라우저에만 남아있고, 새로고침하거나 다른 사람이 보면 반영되지 않을 수 있어요.\n\n(개발자용 상세정보: " + err.message + ")"
-          );
+          const isSizeError = /size|limit|blob|429|413/i.test(err.message);
+          const msg = isSizeError
+            ? "공유 저장소 용량을 초과했어요. 사진 개수를 줄이거나 사진 없이 저장해 보세요. 방금 변경한 내용은 이 브라우저에만 남아있어요."
+            : "공유 저장소에 저장하지 못했어요. 방금 변경한 내용은 이 브라우저에만 남아있고, 새로고침하거나 다른 사람이 보면 반영되지 않을 수 있어요.";
+          window.alert(msg + "\n\n(개발자용 상세정보: " + err.message + ")");
         });
     }
   };
@@ -1284,12 +1320,12 @@ function FoodArchiveApp() {
 
       {cloudStatus === "unconfigured" && (
         <div className="px-4 py-2 text-xs font-medium" style={{ background: C.goldPale, color: C.gold }}>
-          공유 저장소가 아직 설정되지 않았어요. 지금은 이 브라우저에만 저장됩니다 — 방문자 전원에게 최신 목록을 보여주려면 코드 상단의 JSONBLOB_ID 를 채워주세요.
+          공유 저장소가 아직 설정되지 않았어요. 지금은 이 브라우저에만 저장됩니다 — 방문자 전원에게 최신 목록을 보여주려면 코드 상단의 JSONBIN_BIN_ID / JSONBIN_API_KEY 를 채워주세요.
         </div>
       )}
       {cloudStatus === "error" && (
         <div className="px-4 py-2 text-xs font-medium" style={{ background: C.clayPale, color: C.clay }}>
-          공유 저장소에 연결하지 못했어요. 방금 한 변경사항은 이 브라우저에만 저장되어 있어요. 인터넷 연결과 JSONBLOB_ID 설정을 확인해 주세요.
+          공유 저장소에 연결하지 못했어요. 방금 한 변경사항은 이 브라우저에만 저장되어 있어요. 인터넷 연결과 JSONBin 설정을 확인해 주세요.
         </div>
       )}
 
