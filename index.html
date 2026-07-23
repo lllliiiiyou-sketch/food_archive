@@ -1066,19 +1066,25 @@ function RestaurantForm({ initial, onCancel, onSave }) {
     if (!validate()) return;
     setSaving(true);
     let resolvedLatLng = latLng || (initial?.lat && initial?.lng ? { lat: initial.lat, lng: initial.lng } : null);
+    let isPrecise = !!resolvedLatLng;
     if (!resolvedLatLng) {
       resolvedLatLng = await geocodeAddress(address); // best-effort auto lookup, doesn't block on failure
+      isPrecise = !!resolvedLatLng;
     }
     const cleanMenus = menus.filter((m) => m.name.trim() && m.price !== "").map((m) => ({ ...m, price: Number(m.price) }));
     const center = DONG_CENTERS[`${gu}-${dong}`] || { x: 50, y: 40 };
     if (!resolvedLatLng) resolvedLatLng = DONG_LATLNG[`${gu}-${dong}`]; // last resort: approximate 동 center
     const derivedXY = resolvedLatLng ? projectLatLng(resolvedLatLng.lat, resolvedLatLng.lng) : { x: center.x, y: center.y };
+    // Only jitter the schematic (mock-map) position when we're using an approximate
+    // 동-center fallback — a precisely geocoded address should render exactly where it is.
+    const jitterX = isPrecise ? 0 : Math.random() * 1 - 0.5;
+    const jitterY = isPrecise ? 0 : Math.random() * 1 - 0.5;
     const payload = {
       id: initial?.id || uid("r"),
       name: name.trim(), address: address.trim(), gu, dong,
       lat: resolvedLatLng?.lat, lng: resolvedLatLng?.lng,
-      x: initial?.x ?? derivedXY.x + (Math.random() * 1 - 0.5),
-      y: initial?.y ?? derivedXY.y + (Math.random() * 1 - 0.5),
+      x: initial?.x ?? derivedXY.x + jitterX,
+      y: initial?.y ?? derivedXY.y + jitterY,
       category, visitDate,
       createdAt: initial?.createdAt || todayStr(), updatedAt: todayStr(),
       rating: Number(rating), oneLiner: oneLiner.trim(), review: review.trim(), revisit,
