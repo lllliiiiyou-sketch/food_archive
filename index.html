@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>대동여지도 - 나만의 맛집 기록</title>
+<title>대동룽여지도 - 나만의 맛집 기록</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -1643,7 +1643,7 @@ function FoodArchiveApp() {
         setPreviewId(null);
         window.alert(`${parsed.length}곳의 맛집 기록을 불러왔습니다.`);
       } catch (e) {
-        window.alert("파일을 읽을 수 없어요. 대동여지도에서 내보낸 JSON 백업 파일인지 확인해 주세요.");
+        window.alert("파일을 읽을 수 없어요. 대동룽여지도에서 내보낸 JSON 백업 파일인지 확인해 주세요.");
       }
     };
     reader.readAsText(file);
@@ -1693,7 +1693,7 @@ function FoodArchiveApp() {
               대
             </div>
             <div>
-              <p className="font-display font-semibold text-base leading-none" style={{ color: C.ink }}>대동여지도</p>
+              <p className="font-display font-semibold text-base leading-none" style={{ color: C.ink }}>대동룽여지도</p>
               <p className="text-[11px] leading-none mt-0.5" style={{ color: C.inkFaint }}>나만의 맛집 기록</p>
             </div>
           </div>
