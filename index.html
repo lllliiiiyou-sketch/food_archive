@@ -84,20 +84,83 @@ const CATEGORY_MARK = {
 };
 
 const REGIONS = {
-  마포구: ["연남동", "합정동", "망원동"],
-  종로구: ["익선동", "삼청동", "효자동"],
-  용산구: ["한남동", "이태원동", "보광동"],
-  성동구: ["성수동", "금호동", "왕십리동"],
-  강남구: ["신사동", "청담동", "역삼동"],
+  종로구: ["청운동", "효자동", "사직동", "삼청동", "부암동", "평창동", "가회동", "익선동", "창신동", "숭인동", "혜화동", "이화동"],
+  중구: ["명동", "을지로동", "필동", "장충동", "신당동", "다산동", "약수동", "회현동", "소공동"],
+  용산구: ["이태원동", "한남동", "보광동", "서빙고동", "후암동", "남영동", "청파동", "원효로동", "효창동", "삼각지"],
+  성동구: ["성수동", "왕십리동", "금호동", "옥수동", "행당동", "마장동", "응봉동", "송정동"],
+  광진구: ["자양동", "화양동", "구의동", "능동", "중곡동", "군자동"],
+  동대문구: ["이문동", "회기동", "청량리동", "답십리동", "장안동", "전농동", "용두동", "제기동"],
+  중랑구: ["면목동", "상봉동", "중화동", "묵동", "신내동", "망우동"],
+  성북구: ["성북동", "삼선동", "동선동", "돈암동", "안암동", "정릉동", "길음동", "종암동", "월곡동", "장위동", "석관동"],
+  강북구: ["미아동", "번동", "수유동", "우이동"],
+  도봉구: ["도봉동", "방학동", "쌍문동", "창동"],
+  노원구: ["상계동", "중계동", "하계동", "공릉동", "월계동"],
+  은평구: ["연신내동", "불광동", "응암동", "역촌동", "갈현동", "구산동", "대조동", "진관동"],
+  서대문구: ["신촌동", "연희동", "홍제동", "홍은동", "남가좌동", "북가좌동", "창천동", "천연동"],
+  마포구: ["연남동", "합정동", "망원동", "상수동", "서교동", "성산동", "동교동", "공덕동", "아현동", "도화동", "신수동"],
+  양천구: ["목동", "신정동", "신월동"],
+  강서구: ["화곡동", "등촌동", "염창동", "방화동", "가양동", "마곡동", "공항동"],
+  구로구: ["구로동", "신도림동", "개봉동", "오류동", "고척동", "항동"],
+  금천구: ["가산동", "독산동", "시흥동"],
+  영등포구: ["여의도동", "영등포동", "당산동", "문래동", "신길동", "대림동", "양평동"],
+  동작구: ["노량진동", "상도동", "사당동", "흑석동", "대방동", "신대방동"],
+  관악구: ["신림동", "봉천동", "남현동"],
+  서초구: ["서초동", "방배동", "반포동", "잠원동", "양재동", "내곡동"],
+  강남구: ["신사동", "청담동", "압구정동", "논현동", "역삼동", "삼성동", "대치동", "개포동", "도곡동", "세곡동"],
+  송파구: ["잠실동", "방이동", "석촌동", "문정동", "가락동", "오금동", "거여동", "장지동", "풍납동"],
+  강동구: ["천호동", "성내동", "길동", "명일동", "고덕동", "암사동", "둔촌동"],
 };
 
-const DONG_CENTERS = {
-  "마포구-연남동": { x: 17, y: 28 }, "마포구-합정동": { x: 13, y: 34 }, "마포구-망원동": { x: 9, y: 30 },
-  "종로구-익선동": { x: 45, y: 17 }, "종로구-삼청동": { x: 41, y: 10 }, "종로구-효자동": { x: 37, y: 12 },
-  "용산구-한남동": { x: 53, y: 47 }, "용산구-이태원동": { x: 48, y: 44 }, "용산구-보광동": { x: 50, y: 51 },
-  "성동구-성수동": { x: 69, y: 41 }, "성동구-금호동": { x: 64, y: 45 }, "성동구-왕십리동": { x: 60, y: 38 },
-  "강남구-신사동": { x: 72, y: 63 }, "강남구-청담동": { x: 78, y: 60 }, "강남구-역삼동": { x: 76, y: 68 },
+// Approximate real-world center of each 구 (lat/lng). Used both to project the
+// schematic mock-map layout AND, once a real map API key is configured, as a
+// fallback center for 동 that don't have an explicit geocoded restaurant yet.
+const GU_LATLNG = {
+  종로구: { lat: 37.5735, lng: 126.9788 }, 중구: { lat: 37.5641, lng: 126.9979 },
+  용산구: { lat: 37.5384, lng: 126.9654 }, 성동구: { lat: 37.5634, lng: 127.0367 },
+  광진구: { lat: 37.5384, lng: 127.0822 }, 동대문구: { lat: 37.5744, lng: 127.0396 },
+  중랑구: { lat: 37.6063, lng: 127.0925 }, 성북구: { lat: 37.5894, lng: 127.0167 },
+  강북구: { lat: 37.6396, lng: 127.0257 }, 도봉구: { lat: 37.6688, lng: 127.0471 },
+  노원구: { lat: 37.6542, lng: 127.0568 }, 은평구: { lat: 37.6027, lng: 126.9291 },
+  서대문구: { lat: 37.5791, lng: 126.9368 }, 마포구: { lat: 37.5663, lng: 126.9019 },
+  양천구: { lat: 37.5170, lng: 126.8664 }, 강서구: { lat: 37.5509, lng: 126.8495 },
+  구로구: { lat: 37.4954, lng: 126.8874 }, 금천구: { lat: 37.4600, lng: 126.9002 },
+  영등포구: { lat: 37.5264, lng: 126.8963 }, 동작구: { lat: 37.5124, lng: 126.9393 },
+  관악구: { lat: 37.4784, lng: 126.9516 }, 서초구: { lat: 37.4836, lng: 127.0327 },
+  강남구: { lat: 37.5172, lng: 127.0473 }, 송파구: { lat: 37.5145, lng: 127.1058 },
+  강동구: { lat: 37.5301, lng: 127.1237 },
 };
+
+// Seoul's rough bounding box, used to project real lat/lng onto the 0-100
+// schematic canvas the mock map draws on. Once a real map API key is set,
+// KakaoMap uses the real lat/lng directly instead of this projection.
+const SEOUL_BOUNDS = { minLat: 37.42, maxLat: 37.70, minLng: 126.76, maxLng: 127.18 };
+function projectLatLng(lat, lng) {
+  const x = ((lng - SEOUL_BOUNDS.minLng) / (SEOUL_BOUNDS.maxLng - SEOUL_BOUNDS.minLng)) * 100;
+  const y = ((SEOUL_BOUNDS.maxLat - lat) / (SEOUL_BOUNDS.maxLat - SEOUL_BOUNDS.minLat)) * 100;
+  return { x: Math.min(96, Math.max(4, x)), y: Math.min(94, Math.max(4, y)) };
+}
+
+// Deterministic small offset per 동 within its 구, so neighborhoods fan out
+// around the 구 center instead of stacking on the exact same point.
+function dongLatLng(gu, dongIndex, dongCount) {
+  const base = GU_LATLNG[gu];
+  const angle = (dongIndex / Math.max(1, dongCount)) * Math.PI * 2;
+  const radius = 0.012 + (dongIndex % 3) * 0.004;
+  return { lat: base.lat + Math.sin(angle) * radius, lng: base.lng + Math.cos(angle) * radius };
+}
+
+const DONG_LATLNG = {};
+const DONG_CENTERS = {};
+Object.entries(REGIONS).forEach(([gu, dongs]) => {
+  dongs.forEach((dong, i) => {
+    const ll = dongLatLng(gu, i, dongs.length);
+    DONG_LATLNG[`${gu}-${dong}`] = ll;
+    DONG_CENTERS[`${gu}-${dong}`] = projectLatLng(ll.lat, ll.lng);
+  });
+});
+
+const COURSE_PRESETS = ["데이트", "혼밥", "회식", "브런치", "카공", "술집투어", "가족모임", "반려동물동반"];
+
 
 const PRICE_BUCKETS = [
   { key: "all", label: "전체" },
@@ -115,7 +178,8 @@ function photo(seed, type, isMain) {
 const initialRestaurants = [
   {
     id: "r1", name: "연남 온기", address: "서울 마포구 연남동 227-8", gu: "마포구", dong: "연남동",
-    x: 17, y: 28, category: "한식", visitDate: "2026-05-12", createdAt: "2026-05-13", updatedAt: "2026-05-13",
+    lat: 37.5635, lng: 126.9257, ...projectLatLng(37.5635, 126.9257), courses: ["혼밥", "가족모임"],
+    category: "한식", visitDate: "2026-05-12", createdAt: "2026-05-13", updatedAt: "2026-05-13",
     rating: 4.5, oneLiner: "집밥 같은 국물이 자꾸 생각나는 곳", revisit: "yes",
     review: "혼자 가도 눈치 안 보이는 분위기가 좋았다. 국밥 국물이 진하고 삼삼해서 다음날 또 생각났다. 반찬 리필도 흔쾌히 해주셔서 마음까지 든든했던 저녁.",
     menus: [
@@ -127,7 +191,8 @@ const initialRestaurants = [
   },
   {
     id: "r2", name: "연남 브릭커피", address: "서울 마포구 연남동 240-1", gu: "마포구", dong: "연남동",
-    x: 19, y: 27, category: "카페", visitDate: "2026-06-02", createdAt: "2026-06-02", updatedAt: "2026-06-02",
+    lat: 37.5642, lng: 126.9247, ...projectLatLng(37.5642, 126.9247), courses: ["카공", "혼밥"],
+    category: "카페", visitDate: "2026-06-02", createdAt: "2026-06-02", updatedAt: "2026-06-02",
     rating: 4, oneLiner: "핸드드립 향이 오래 남는 조용한 카페", revisit: "maybe",
     review: "좌석 간격이 넓어서 노트북 작업하기 좋았다. 크루아상은 살짝 눅눅했는데 커피 맛이 그걸 다 상쇄할 정도로 좋았다.",
     menus: [
@@ -138,7 +203,8 @@ const initialRestaurants = [
   },
   {
     id: "r3", name: "익선동 다정", address: "서울 종로구 익선동 55-1", gu: "종로구", dong: "익선동",
-    x: 45, y: 17, category: "디저트", visitDate: "2026-04-20", createdAt: "2026-04-21", updatedAt: "2026-04-21",
+    lat: 37.573, lng: 126.9909, ...projectLatLng(37.573, 126.9909), courses: ["데이트"],
+    category: "디저트", visitDate: "2026-04-20", createdAt: "2026-04-21", updatedAt: "2026-04-21",
     rating: 5, oneLiner: "한옥 마당에서 먹는 인절미 빙수", revisit: "yes",
     review: "한옥을 개조한 공간이라 사진이 예쁘게 나온다. 인절미 빙수의 얼음이 눈처럼 고와서 끝까지 물 없이 다 먹었다. 웨이팅이 긴 편이라 오픈런 추천.",
     menus: [
@@ -149,7 +215,8 @@ const initialRestaurants = [
   },
   {
     id: "r4", name: "한남 그로서리키친", address: "서울 용산구 한남동 683-142", gu: "용산구", dong: "한남동",
-    x: 53, y: 47, category: "양식", visitDate: "2026-03-15", createdAt: "2026-03-16", updatedAt: "2026-03-16",
+    lat: 37.5347, lng: 127.0009, ...projectLatLng(37.5347, 127.0009), courses: ["데이트", "브런치"],
+    category: "양식", visitDate: "2026-03-15", createdAt: "2026-03-16", updatedAt: "2026-03-16",
     rating: 4, oneLiner: "런치 코스 가성비가 좋은 비스트로", revisit: "yes",
     review: "런치 코스 기준으로는 만족스러운 구성. 수프와 메인 사이 텀이 조금 길었지만 빵이 계속 리필되어 지루하지 않았다.",
     menus: [
@@ -160,7 +227,8 @@ const initialRestaurants = [
   },
   {
     id: "r5", name: "성수 발효식탁", address: "서울 성동구 성수동2가 302-14", gu: "성동구", dong: "성수동",
-    x: 69, y: 41, category: "한식", visitDate: "2026-05-28", createdAt: "2026-05-29", updatedAt: "2026-05-29",
+    lat: 37.5445, lng: 127.0564, ...projectLatLng(37.5445, 127.0564), courses: ["가족모임", "데이트"],
+    category: "한식", visitDate: "2026-05-28", createdAt: "2026-05-29", updatedAt: "2026-05-29",
     rating: 4.5, oneLiner: "된장 베이스 정식이 정갈한 곳", revisit: "yes",
     review: "발효 재료를 활용한 코스 정식. 간이 세지 않아서 재료 본연의 맛이 잘 느껴졌다. 그릇과 플레이팅도 정성스러워서 특별한 날 방문하기 좋겠다.",
     menus: [
@@ -171,7 +239,8 @@ const initialRestaurants = [
   },
   {
     id: "r6", name: "신사 오마카세 온", address: "서울 강남구 신사동 640-9", gu: "강남구", dong: "신사동",
-    x: 71, y: 62, category: "일식", visitDate: "2026-02-08", createdAt: "2026-02-09", updatedAt: "2026-02-09",
+    lat: 37.5163, lng: 127.0206, ...projectLatLng(37.5163, 127.0206), courses: ["데이트", "회식"],
+    category: "일식", visitDate: "2026-02-08", createdAt: "2026-02-09", updatedAt: "2026-02-09",
     rating: 5, oneLiner: "생일에 큰맘 먹고 간 오마카세", revisit: "yes",
     review: "제철 생선 위주 구성이라 매번 코스가 조금씩 달라진다고. 밥알 온도와 크기가 정확해서 몰입도가 높았다. 가격대는 있지만 특별한 날엔 아깝지 않다.",
     menus: [
@@ -182,7 +251,8 @@ const initialRestaurants = [
   },
   {
     id: "r7", name: "신사 야마자키 이자카야", address: "서울 강남구 신사동 518-11", gu: "강남구", dong: "신사동",
-    x: 73, y: 64, category: "술집", visitDate: "2026-01-19", createdAt: "2026-01-20", updatedAt: "2026-01-20",
+    lat: 37.517, lng: 127.0198, ...projectLatLng(37.517, 127.0198), courses: ["술집투어", "회식"],
+    category: "술집", visitDate: "2026-01-19", createdAt: "2026-01-20", updatedAt: "2026-01-20",
     rating: 3.5, oneLiner: "안주는 좋은데 자리가 좁은 편", revisit: "maybe",
     review: "꼬치 굽는 냄새가 진짜 좋았다. 다만 테이블 간격이 좁아서 옆자리 대화가 다 들리는 게 아쉬웠다. 하이볼 라인업은 훌륭했음.",
     menus: [
@@ -206,6 +276,14 @@ const CLOUD_CONFIGURED =
   JSONBIN_BIN_ID.trim().length > 5 &&
   JSONBIN_API_KEY.trim().length > 5;
 const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+
+/* =================================================================
+   실제 지도 연동 (Kakao Maps) — 선택 사항입니다. 비워두면 기존처럼
+   스키매틱 목업 지도가 표시되고, 아래 키를 채우면 실제 카카오맵으로
+   자동 전환됩니다. 발급 방법은 대화창 안내 참고.
+================================================================= */
+const KAKAO_APP_KEY = "0ae9d3fbde1cedd53b9acc8940e325d5";
+const MAP_CONFIGURED = !KAKAO_APP_KEY.includes("PASTE_YOUR") && KAKAO_APP_KEY.trim().length > 5;
 
 /* =================================================================
    글쓰기 잠금 — 코드에는 비밀번호 원문이 아니라 변환된 값만 저장됩니다.
@@ -489,6 +567,125 @@ function MockMap({ restaurants, selectedId, hoveredId, onSelectMarker, focus, pr
 }
 
 /* ---------------------------------------------------------------
+   Real map (Kakao Maps) — loads the SDK lazily and falls back to
+   MockMap automatically if the key is missing or the SDK fails to load.
+---------------------------------------------------------------- */
+let kakaoLoadPromise = null;
+function loadKakaoSdk() {
+  if (kakaoLoadPromise) return kakaoLoadPromise;
+  kakaoLoadPromise = new Promise((resolve, reject) => {
+    if (window.kakao && window.kakao.maps) { resolve(window.kakao); return; }
+    const script = document.createElement("script");
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false&libraries=services`;
+    script.onerror = () => reject(new Error("Kakao SDK load failed"));
+    script.onload = () => {
+      window.kakao.maps.load(() => resolve(window.kakao));
+    };
+    document.head.appendChild(script);
+  });
+  return kakaoLoadPromise;
+}
+
+function KakaoMap({ restaurants, selectedId, hoveredId, onSelectMarker, focus, previewId, onClosePreview, onOpenDetail, onLoadError }) {
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  const markersRef = useRef([]);
+  const [ready, setReady] = useState(false);
+  const preview = restaurants.find((r) => r.id === previewId);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadKakaoSdk()
+      .then((kakao) => {
+        if (cancelled || !containerRef.current) return;
+        const center = new kakao.maps.LatLng(37.5665, 126.978);
+        mapRef.current = new kakao.maps.Map(containerRef.current, { center, level: 8 });
+        setReady(true);
+      })
+      .catch(() => { if (!cancelled) onLoadError?.(); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // re-center when focus (region selection) changes
+  useEffect(() => {
+    if (!ready || !mapRef.current || !window.kakao) return;
+    if (focus?.lat && focus?.lng) {
+      mapRef.current.setCenter(new window.kakao.maps.LatLng(focus.lat, focus.lng));
+      mapRef.current.setLevel(6);
+    } else {
+      mapRef.current.setCenter(new window.kakao.maps.LatLng(37.5665, 126.978));
+      mapRef.current.setLevel(8);
+    }
+  }, [ready, focus]);
+
+  // redraw markers whenever the restaurant list or highlight state changes
+  useEffect(() => {
+    if (!ready || !mapRef.current || !window.kakao) return;
+    const kakao = window.kakao;
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = [];
+    restaurants.forEach((r) => {
+      if (!r.lat || !r.lng) return;
+      const active = r.id === selectedId || r.id === hoveredId;
+      const marker = new kakao.maps.Marker({
+        position: new kakao.maps.LatLng(r.lat, r.lng),
+        map: mapRef.current,
+        title: r.name,
+        zIndex: active ? 20 : 10,
+      });
+      kakao.maps.event.addListener(marker, "click", () => onSelectMarker(r.id));
+      markersRef.current.push(marker);
+    });
+  }, [ready, restaurants, selectedId, hoveredId, onSelectMarker]);
+
+  return (
+    <div className="relative w-full h-full">
+      <div ref={containerRef} className="absolute inset-0" />
+      {!ready && (
+        <div className="absolute inset-0 flex items-center justify-center" style={{ background: C.paperAlt, color: C.inkFaint }}>
+          지도를 불러오는 중…
+        </div>
+      )}
+      {preview && (
+        <div
+          className="absolute top-3 left-3 rounded-xl p-3 flex gap-3"
+          style={{ width: 250, background: "#FFFFFF", border: `1px solid ${C.line}`, boxShadow: "0 8px 20px rgba(36,32,23,0.18)", zIndex: 30 }}
+        >
+          <button
+            onClick={onClosePreview}
+            className="absolute -top-2 -right-2 rounded-full flex items-center justify-center"
+            style={{ width: 22, height: 22, background: C.ink, color: "#fff" }}
+            aria-label="닫기"
+          >
+            <Icon name="x" width={13} height={13} />
+          </button>
+          <img src={mainPhoto(preview)?.url} alt={preview.name} className="rounded-lg object-cover shrink-0" style={{ width: 64, height: 64 }} />
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-sm font-semibold truncate" style={{ color: C.ink }}>{preview.name}</p>
+            <div className="mt-0.5"><Stars value={preview.rating} size={12} /></div>
+            <p className="text-xs mt-1 truncate" style={{ color: C.inkSoft }}>
+              {preview.category} · {signatureMenu(preview)?.name}
+            </p>
+            <button onClick={() => onOpenDetail(preview.id)} className="mt-1.5 text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
+              상세보기
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SeoulMap(props) {
+  const [kakaoFailed, setKakaoFailed] = useState(false);
+  if (MAP_CONFIGURED && !kakaoFailed) {
+    return <KakaoMap {...props} onLoadError={() => setKakaoFailed(true)} />;
+  }
+  return <MockMap {...props} />;
+}
+
+/* ---------------------------------------------------------------
    Region breadcrumb
 ---------------------------------------------------------------- */
 function RegionBreadcrumb({ gu, dong, onSetGu, onSetDong }) {
@@ -600,6 +797,15 @@ function RestaurantCard({ r, active, onHover, onSelect, onOpenDetail }) {
         </div>
         <p className="text-xs mt-0.5" style={{ color: C.inkSoft }}>{r.category} · {r.gu} {r.dong}</p>
         <div className="mt-1"><Stars value={r.rating} size={13} /></div>
+        {r.courses?.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {r.courses.slice(0, 3).map((c) => (
+              <span key={c} className="rounded-full px-1.5 py-0.5 text-[10px] font-medium" style={{ background: C.goldPale, color: C.gold }}>
+                #{c}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="mt-auto flex items-center justify-between pt-1">
           <p className="text-xs truncate" style={{ color: C.inkSoft }}>
             {sig?.name} <span className="font-mono" style={{ color: C.navy }}>{won(sig?.price)}</span>
@@ -725,8 +931,39 @@ function RestaurantForm({ initial, onCancel, onSave }) {
   const [revisit, setRevisit] = useState(initial?.revisit || "maybe");
   const [menus, setMenus] = useState(initial?.menus?.length ? initial.menus : [{ id: uid("m"), name: "", price: "", isSignature: true }]);
   const [photos, setPhotos] = useState(initial?.photos || []);
+  const [courses, setCourses] = useState(initial?.courses || []);
+  const [courseInput, setCourseInput] = useState("");
+  const [latLng, setLatLng] = useState(initial?.lat && initial?.lng ? { lat: initial.lat, lng: initial.lng } : null);
+  const [geocodeStatus, setGeocodeStatus] = useState("idle"); // idle | loading | done | error
   const [errors, setErrors] = useState({});
   const fileRef = useRef(null);
+
+  const addCourse = (c) => {
+    const v = c.trim();
+    if (!v || courses.includes(v)) return;
+    setCourses((cs) => [...cs, v]);
+    setCourseInput("");
+  };
+  const removeCourse = (c) => setCourses((cs) => cs.filter((x) => x !== c));
+
+  const findCoordinates = () => {
+    if (!address.trim()) { window.alert("먼저 주소를 입력해 주세요."); return; }
+    if (!MAP_CONFIGURED || !window.kakao?.maps?.services) {
+      window.alert("지도 연동이 설정되지 않아 좌표를 자동으로 찾을 수 없어요. 구/동만으로도 지도에 표시됩니다.");
+      return;
+    }
+    setGeocodeStatus("loading");
+    const geocoder = new window.kakao.maps.services.Geocoder();
+    geocoder.addressSearch(address.trim(), (result, status) => {
+      if (status === window.kakao.maps.services.Status.OK && result[0]) {
+        setLatLng({ lat: Number(result[0].y), lng: Number(result[0].x) });
+        setGeocodeStatus("done");
+      } else {
+        setGeocodeStatus("error");
+        window.alert("주소로 좌표를 찾지 못했어요. 주소를 조금 더 구체적으로 입력해 보세요.");
+      }
+    });
+  };
 
   const updateMenu = (id, patch) => setMenus((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
   const addMenu = () => setMenus((ms) => [...ms, { id: uid("m"), name: "", price: "", isSignature: false }]);
@@ -770,15 +1007,19 @@ function RestaurantForm({ initial, onCancel, onSave }) {
     if (!validate()) return;
     const cleanMenus = menus.filter((m) => m.name.trim() && m.price !== "").map((m) => ({ ...m, price: Number(m.price) }));
     const center = DONG_CENTERS[`${gu}-${dong}`] || { x: 50, y: 40 };
+    const resolvedLatLng = latLng || (initial?.lat && initial?.lng ? { lat: initial.lat, lng: initial.lng } : DONG_LATLNG[`${gu}-${dong}`]);
+    const derivedXY = resolvedLatLng ? projectLatLng(resolvedLatLng.lat, resolvedLatLng.lng) : { x: center.x, y: center.y };
     const payload = {
       id: initial?.id || uid("r"),
       name: name.trim(), address: address.trim(), gu, dong,
-      x: initial?.x ?? center.x + (Math.random() * 2 - 1),
-      y: initial?.y ?? center.y + (Math.random() * 2 - 1),
+      lat: resolvedLatLng?.lat, lng: resolvedLatLng?.lng,
+      x: initial?.x ?? derivedXY.x + (Math.random() * 1 - 0.5),
+      y: initial?.y ?? derivedXY.y + (Math.random() * 1 - 0.5),
       category, visitDate,
       createdAt: initial?.createdAt || todayStr(), updatedAt: todayStr(),
       rating: Number(rating), oneLiner: oneLiner.trim(), review: review.trim(), revisit,
       menus: cleanMenus,
+      courses,
       photos: photos.length ? photos : [photo(`${name || "new"}-${Date.now()}`, "음식", true)],
     };
     onSave(payload);
@@ -814,8 +1055,19 @@ function RestaurantForm({ initial, onCancel, onSave }) {
               className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle} />
           ))}
           {field("주소", true, errors.address, (
-            <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="도로명 또는 지번 주소"
-              className="w-full rounded-lg px-3 py-2 text-sm" style={inputStyle} />
+            <div className="flex gap-2">
+              <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="도로명 또는 지번 주소"
+                className="flex-1 min-w-0 rounded-lg px-3 py-2 text-sm" style={inputStyle} />
+              <button
+                type="button"
+                onClick={findCoordinates}
+                className="shrink-0 rounded-lg px-3 py-2 text-xs font-medium inline-flex items-center gap-1"
+                style={{ background: latLng ? C.greenPale : C.paperAlt, color: latLng ? C.green : C.inkSoft }}
+              >
+                <Icon name="navigation" width={13} height={13} />
+                {geocodeStatus === "loading" ? "찾는 중…" : latLng ? "좌표 확인됨" : "좌표 찾기"}
+              </button>
+            </div>
           ))}
 
           <div className="grid grid-cols-2 gap-3">
@@ -949,6 +1201,49 @@ function RestaurantForm({ initial, onCancel, onSave }) {
               ))}
             </div>
           ))}
+
+          {field("코스 태그", false, null, (
+            <div>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {COURSE_PRESETS.map((c) => {
+                  const on = courses.includes(c);
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => (on ? removeCourse(c) : addCourse(c))}
+                      className="rounded-full px-2.5 py-1 text-xs font-medium"
+                      style={{ background: on ? C.navy : C.paperAlt, color: on ? "#fff" : C.inkSoft }}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+              {courses.filter((c) => !COURSE_PRESETS.includes(c)).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {courses.filter((c) => !COURSE_PRESETS.includes(c)).map((c) => (
+                    <span key={c} className="rounded-full px-2.5 py-1 text-xs font-medium inline-flex items-center gap-1" style={{ background: C.goldPale, color: C.gold }}>
+                      {c}
+                      <button type="button" onClick={() => removeCourse(c)}><Icon name="x" width={11} height={11} /></button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  value={courseInput}
+                  onChange={(e) => setCourseInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCourse(courseInput); } }}
+                  placeholder="나만의 코스 이름 입력 후 Enter (예: 마포 산책 코스)"
+                  className="flex-1 min-w-0 rounded-lg px-3 py-2 text-sm" style={inputStyle}
+                />
+                <button type="button" onClick={() => addCourse(courseInput)} className="shrink-0 rounded-lg px-3 py-2 text-xs font-medium" style={{ background: C.paperAlt, color: C.navy }}>
+                  추가
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="sticky bottom-0 flex items-center justify-end gap-2 px-5 py-4" style={{ background: C.paper, borderTop: `1px solid ${C.line}` }}>
@@ -1014,6 +1309,15 @@ function DetailPanel({ r, onClose, onEdit, onDelete }) {
             <span className="text-xs" style={{ color: C.inkSoft }}>{r.gu} {r.dong}</span>
           </div>
           {r.oneLiner && <p className="font-display italic text-sm mt-2" style={{ color: C.inkSoft }}>"{r.oneLiner}"</p>}
+          {r.courses?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {r.courses.map((c) => (
+                <span key={c} className="rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: C.goldPale, color: C.gold }}>
+                  #{c}
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="mt-5">
             <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: C.inkFaint }}>메뉴</p>
@@ -1046,12 +1350,12 @@ function DetailPanel({ r, onClose, onEdit, onDelete }) {
           </div>
 
           <div className="mt-3 rounded-xl overflow-hidden" style={{ height: 140, border: `1px solid ${C.line}` }}>
-            <MockMap
+            <SeoulMap
               restaurants={[r]}
               selectedId={r.id}
               hoveredId={null}
               onSelectMarker={() => {}}
-              focus={{ x: r.x, y: r.y }}
+              focus={{ x: r.x, y: r.y, lat: r.lat, lng: r.lng }}
               previewId={null}
               onClosePreview={() => {}}
               onOpenDetail={() => {}}
@@ -1092,6 +1396,7 @@ function FoodArchiveApp() {
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState({ category: null, minRating: 0, price: null, revisit: null });
   const [filterOpen, setFilterOpen] = useState(false);
+  const [courseFilter, setCourseFilter] = useState(null);
 
   const [selectedId, setSelectedId] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
@@ -1104,13 +1409,14 @@ function FoodArchiveApp() {
   const [sheetExpanded, setSheetExpanded] = useState(false);
 
   const filtered = useMemo(() => {
-    return restaurants.filter((r) => {
+    const list = restaurants.filter((r) => {
       if (gu && r.gu !== gu) return false;
       if (dong && r.dong !== dong) return false;
       if (filters.category && r.category !== filters.category) return false;
       if (filters.minRating && r.rating < filters.minRating) return false;
       if (filters.price && priceBucketOf(avgPrice(r)) !== filters.price) return false;
       if (filters.revisit && r.revisit !== filters.revisit) return false;
+      if (courseFilter && !(r.courses || []).includes(courseFilter)) return false;
       if (query.trim()) {
         const q = query.trim().toLowerCase();
         const hay = [r.name, r.gu, r.dong, ...r.menus.map((m) => m.name)].join(" ").toLowerCase();
@@ -1118,13 +1424,28 @@ function FoodArchiveApp() {
       }
       return true;
     });
-  }, [restaurants, gu, dong, filters, query]);
+    if (courseFilter) {
+      // "추천" ordering for a selected course: highest rated first, then closest to current map focus
+      return [...list].sort((a, b) => b.rating - a.rating);
+    }
+    return list;
+  }, [restaurants, gu, dong, filters, query, courseFilter]);
 
-  const focus = dong ? DONG_CENTERS[`${gu}-${dong}`] : gu
+  const allCourses = useMemo(() => {
+    const set = new Set();
+    restaurants.forEach((r) => (r.courses || []).forEach((c) => set.add(c)));
+    return Array.from(set);
+  }, [restaurants]);
+
+  const focus = dong
+    ? { ...DONG_CENTERS[`${gu}-${dong}`], ...DONG_LATLNG[`${gu}-${dong}`] }
+    : gu
     ? (() => {
         const pts = (REGIONS[gu] || []).map((d) => DONG_CENTERS[`${gu}-${d}`]).filter(Boolean);
-        if (!pts.length) return null;
-        return { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length };
+        const xy = pts.length
+          ? { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length }
+          : {};
+        return { ...xy, ...GU_LATLNG[gu] };
       })()
     : null;
 
@@ -1329,10 +1650,33 @@ function FoodArchiveApp() {
         </div>
       )}
 
+      {allCourses.length > 0 && (
+        <div className="px-4 md:px-6 py-2 flex items-center gap-2 flex-wrap" style={{ borderBottom: `1px solid ${C.line}`, background: C.paperAlt }}>
+          <span className="text-xs font-semibold shrink-0" style={{ color: C.inkSoft }}>코스로 둘러보기</span>
+          <button
+            onClick={() => setCourseFilter(null)}
+            className="rounded-full px-2.5 py-1 text-xs font-medium"
+            style={{ background: !courseFilter ? C.navy : "#fff", color: !courseFilter ? "#fff" : C.inkSoft, border: `1px solid ${C.line}` }}
+          >
+            전체
+          </button>
+          {allCourses.map((c) => (
+            <button
+              key={c}
+              onClick={() => setCourseFilter(courseFilter === c ? null : c)}
+              className="rounded-full px-2.5 py-1 text-xs font-medium"
+              style={{ background: courseFilter === c ? C.navy : "#fff", color: courseFilter === c ? "#fff" : C.inkSoft, border: `1px solid ${C.line}` }}
+            >
+              #{c}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* main */}
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row relative">
         <div className="flex-1 min-h-0 relative">
-          <MockMap
+          <SeoulMap
             restaurants={filtered}
             selectedId={selectedId}
             hoveredId={hoveredId}
@@ -1348,7 +1692,7 @@ function FoodArchiveApp() {
         <div className="hidden lg:flex flex-col shrink-0" style={{ width: 380, borderLeft: `1px solid ${C.line}`, background: C.paper }}>
           <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.line}` }}>
             <p className="text-sm font-semibold" style={{ color: C.ink }}>
-              {dong ? `${gu} ${dong}` : gu || "서울 전체"}
+              {courseFilter ? `#${courseFilter} 추천 리스트` : dong ? `${gu} ${dong}` : gu || "서울 전체"}
             </p>
             <div className="flex items-center gap-2">
               <p className="text-xs font-mono" style={{ color: C.inkFaint }}>{filtered.length}곳</p>
@@ -1405,7 +1749,7 @@ function FoodArchiveApp() {
           <div className="overflow-y-auto px-3 pb-4" style={{ height: "calc(100% - 48px)" }}>
             <div className="flex items-center justify-between px-1 pb-2 gap-2 flex-wrap">
               <p className="text-sm font-semibold" style={{ color: C.ink }}>
-                {dong ? `${gu} ${dong}` : gu || "서울 전체"}
+                {courseFilter ? `#${courseFilter} 추천 리스트` : dong ? `${gu} ${dong}` : gu || "서울 전체"}
               </p>
               <div className="flex items-center gap-2">
                 <button onClick={exportData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
