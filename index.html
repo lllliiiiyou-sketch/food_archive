@@ -475,7 +475,7 @@ function RevisitBadge({ revisit }) {
 ---------------------------------------------------------------- */
 function MockMap({ restaurants, selectedId, hoveredId, onSelectMarker, focus, previewId, onClosePreview, onOpenDetail }) {
   const preview = restaurants.find((r) => r.id === previewId);
-  const scale = focus ? 1.9 : 1;
+  const scale = focus ? focus.scale || 1.9 : 1;
   const cx = focus ? focus.x : 50;
   const cy = focus ? focus.y : 40;
   const originStyle = { transformOrigin: `${cx}% ${cy}%` };
@@ -646,12 +646,12 @@ function KakaoMap({ restaurants, selectedId, hoveredId, onSelectMarker, focus, p
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // re-center when focus (region selection) changes
+  // re-center when focus (region selection or a specific restaurant) changes
   useEffect(() => {
     if (!ready || !mapRef.current || !window.kakao) return;
     if (focus?.lat && focus?.lng) {
-      mapRef.current.setCenter(new window.kakao.maps.LatLng(focus.lat, focus.lng));
-      mapRef.current.setLevel(6);
+      mapRef.current.panTo(new window.kakao.maps.LatLng(focus.lat, focus.lng));
+      mapRef.current.setLevel(focus.level || 6);
     } else {
       mapRef.current.setCenter(new window.kakao.maps.LatLng(37.5665, 126.978));
       mapRef.current.setLevel(8);
@@ -1517,6 +1517,10 @@ function FoodArchiveApp() {
   const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [sheetDragY, setSheetDragY] = useState(0);
+  const [sheetDragging, setSheetDragging] = useState(false);
+  const sheetDragStartRef = useRef(0);
+  const sheetDragMovedRef = useRef(false);
 
   const filtered = useMemo(() => {
     const list = restaurants.filter((r) => {
@@ -1547,15 +1551,18 @@ function FoodArchiveApp() {
     return Array.from(set);
   }, [restaurants]);
 
-  const focus = dong
-    ? { ...DONG_CENTERS[`${gu}-${dong}`], ...DONG_LATLNG[`${gu}-${dong}`] }
+  const selectedForFocus = restaurants.find((r) => r.id === selectedId);
+  const focus = selectedForFocus
+    ? { x: selectedForFocus.x, y: selectedForFocus.y, lat: selectedForFocus.lat, lng: selectedForFocus.lng, level: 3, scale: 2.6 }
+    : dong
+    ? { ...DONG_CENTERS[`${gu}-${dong}`], ...DONG_LATLNG[`${gu}-${dong}`], level: 6, scale: 1.9 }
     : gu
     ? (() => {
         const pts = (REGIONS[gu] || []).map((d) => DONG_CENTERS[`${gu}-${d}`]).filter(Boolean);
         const xy = pts.length
           ? { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length }
           : {};
-        return { ...xy, ...GU_LATLNG[gu] };
+        return { ...xy, ...GU_LATLNG[gu], level: 8, scale: 1.9 };
       })()
     : null;
 
@@ -1647,6 +1654,38 @@ function FoodArchiveApp() {
       }
     };
     reader.readAsText(file);
+  };
+
+  const SHEET_PEEK_PX = 172;
+
+  const sheetPointerDown = (e) => {
+    sheetDragStartRef.current = e.clientY;
+    sheetDragMovedRef.current = false;
+    setSheetDragging(true);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const sheetPointerMove = (e) => {
+    if (!sheetDragging) return;
+    const delta = e.clientY - sheetDragStartRef.current;
+    if (Math.abs(delta) > 6) sheetDragMovedRef.current = true;
+    // clamp so you can't drag wildly past either snap point
+    setSheetDragY(Math.max(-window.innerHeight * 0.6, Math.min(window.innerHeight * 0.6, delta)));
+  };
+  const sheetPointerUp = () => {
+    if (!sheetDragging) return;
+    setSheetDragging(false);
+    const dragged = sheetDragMovedRef.current;
+    const delta = sheetDragY;
+    setSheetDragY(0);
+    if (!dragged) {
+      // treated as a plain tap on the handle — just toggle
+      setSheetExpanded((v) => !v);
+      return;
+    }
+    const threshold = 50;
+    if (sheetExpanded && delta > threshold) setSheetExpanded(false);
+    else if (!sheetExpanded && delta < -threshold) setSheetExpanded(true);
+    // otherwise snap back to whatever state it already was in
   };
 
   const selectMarker = (id) => { setSelectedId(id); setPreviewId(id); };
@@ -1837,19 +1876,27 @@ function FoodArchiveApp() {
 
         {/* mobile bottom sheet */}
         <div
-          className="lg:hidden absolute left-0 right-0 bottom-0 rounded-t-2xl transition-transform duration-300"
+          className="lg:hidden absolute left-0 right-0 bottom-0 rounded-t-2xl"
           style={{
             background: C.paper,
             borderTop: `1px solid ${C.line}`,
             boxShadow: "0 -6px 20px rgba(36,32,23,0.15)",
             height: "72%",
-            transform: sheetExpanded ? "translateY(0)" : "translateY(calc(100% - 172px))",
+            transition: sheetDragging ? "none" : "transform 300ms ease-out",
+            transform: sheetExpanded
+              ? `translateY(${sheetDragY}px)`
+              : `translateY(calc(100% - ${SHEET_PEEK_PX}px + ${sheetDragY}px))`,
             zIndex: 25,
+            touchAction: "none",
           }}
         >
           <button
-            onClick={() => setSheetExpanded((v) => !v)}
+            onPointerDown={sheetPointerDown}
+            onPointerMove={sheetPointerMove}
+            onPointerUp={sheetPointerUp}
+            onPointerCancel={sheetPointerUp}
             className="w-full flex flex-col items-center pt-2 pb-2"
+            style={{ touchAction: "none", cursor: "grab" }}
           >
             <span className="rounded-full" style={{ width: 36, height: 4, background: C.lineStrong }} />
             <span className="text-xs font-semibold mt-1.5 flex items-center gap-1" style={{ color: C.ink }}>
@@ -1925,7 +1972,7 @@ function FoodArchiveApp() {
                     key={r.id} r={r}
                     active={r.id === selectedId}
                     onHover={() => {}}
-                    onSelect={(id) => { selectMarker(id); openDetail(id); }}
+                    onSelect={(id) => { selectMarker(id); setSheetExpanded(false); }}
                     onOpenDetail={openDetail}
                   />
                 ))
