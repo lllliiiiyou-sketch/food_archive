@@ -1825,10 +1825,10 @@ function FoodArchiveApp() {
               />
               {query && <button onClick={() => setQuery("")}><Icon name="x" width={14} height={14} style={{ color: C.inkFaint }} /></button>}
             </div>
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 onClick={() => setFilterOpen((v) => !v)}
-                className="flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium relative"
+                className="flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium relative whitespace-nowrap shrink-0"
                 style={{ background: activeCount ? C.navyPale : C.paperAlt, color: activeCount ? C.navy : C.inkSoft }}
               >
                 <Icon name="slidersHorizontal" width={14} height={14} /> 필터
