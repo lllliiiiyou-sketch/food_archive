@@ -626,10 +626,15 @@ function KakaoMap({ restaurants, selectedId, hoveredId, onSelectMarker, focus, p
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
     restaurants.forEach((r) => {
-      if (!r.lat || !r.lng) return;
+      // fall back to the 동 center when this restaurant has no precise geocoded
+      // coordinates yet (e.g. it was added before the map was configured)
+      const fallback = DONG_LATLNG[`${r.gu}-${r.dong}`];
+      const lat = r.lat || fallback?.lat;
+      const lng = r.lng || fallback?.lng;
+      if (!lat || !lng) return;
       const active = r.id === selectedId || r.id === hoveredId;
       const marker = new kakao.maps.Marker({
-        position: new kakao.maps.LatLng(r.lat, r.lng),
+        position: new kakao.maps.LatLng(lat, lng),
         map: mapRef.current,
         title: r.name,
         zIndex: active ? 20 : 10,
