@@ -1504,7 +1504,7 @@ function FoodArchiveApp() {
     if (!CLOUD_CONFIGURED) { setCloudStatus("unconfigured"); return; }
     fetchCloudRestaurants()
       .then((data) => {
-        if (data && data.length) setRestaurants(data);
+        if (Array.isArray(data)) setRestaurants(data);
         setCloudStatus("ready");
       })
       .catch(() => setCloudStatus("error"));
