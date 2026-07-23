@@ -384,7 +384,13 @@ const signatureMenu = (r) => r.menus.find((m) => m.isSignature) || r.menus[0] ||
 const avgPrice = (r) => (r.menus.length ? r.menus.reduce((s, m) => s + Number(m.price || 0), 0) / r.menus.length : 0);
 const priceBucketOf = (avg) => (avg <= 10000 ? "u1" : avg <= 20000 ? "1-2" : avg <= 30000 ? "2-3" : "o3");
 const uid = (p) => `${p}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-const todayStr = () => new Date().toISOString().slice(0, 10);
+const todayStr = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
 
 function compressImageFile(file, maxDimension = 480, quality = 0.5) {
   return new Promise((resolve) => {
@@ -1084,7 +1090,7 @@ function RestaurantForm({ initial, onCancel, onSave }) {
         className="w-full md:max-w-2xl md:rounded-2xl overflow-y-auto"
         style={{ background: C.paper, maxHeight: "100vh" }}
       >
-        <div className="sticky top-0 flex items-center justify-between px-5 py-4 z-10" style={{ background: C.paper, borderBottom: `1px solid ${C.line}` }}>
+        <div className="flex items-center justify-between px-5 py-4 z-10" style={{ background: C.paper, borderBottom: `1px solid ${C.line}` }}>
           <p className="font-display text-lg font-semibold" style={{ color: C.ink }}>{isEdit ? "맛집 수정" : "맛집 추가"}</p>
           <button onClick={onCancel} aria-label="닫기"><Icon name="x" width={20} height={20} style={{ color: C.inkFaint }} /></button>
         </div>
@@ -1286,7 +1292,7 @@ function RestaurantForm({ initial, onCancel, onSave }) {
           ))}
         </div>
 
-        <div className="sticky bottom-0 flex items-center justify-end gap-2 px-5 py-4" style={{ background: C.paper, borderTop: `1px solid ${C.line}` }}>
+        <div className="flex items-center justify-end gap-2 px-5 py-4" style={{ background: C.paper, borderTop: `1px solid ${C.line}` }}>
           <button onClick={onCancel} className="rounded-full px-4 py-2 text-sm font-medium" style={{ color: C.inkSoft }}>취소</button>
           <button onClick={submit} className="rounded-full px-4 py-2 text-sm font-medium inline-flex items-center gap-1.5" style={{ background: C.navy, color: "#fff" }}>
             <Icon name="check" width={15} height={15} /> {isEdit ? "수정 완료" : "등록하기"}
@@ -1300,9 +1306,19 @@ function RestaurantForm({ initial, onCancel, onSave }) {
 /* ---------------------------------------------------------------
    Detail panel
 ---------------------------------------------------------------- */
-function DetailPanel({ r, onClose, onEdit, onDelete }) {
+function DetailPanel({ r, allRestaurants, onClose, onEdit, onDelete, onOpenDetail }) {
   const [activePhoto, setActivePhoto] = useState(mainPhoto(r)?.id);
   const current = r.photos.find((p) => p.id === activePhoto) || mainPhoto(r);
+
+  // "이 식당과 함께 갈 코스" — other places I've logged near this one (same 동
+  // first, then same 구), sorted by my own rating, highest first.
+  const nearbyCourse = useMemo(() => {
+    const others = (allRestaurants || []).filter((x) => x.id !== r.id);
+    const sameDong = others.filter((x) => x.gu === r.gu && x.dong === r.dong);
+    const sameGu = others.filter((x) => x.gu === r.gu && x.dong !== r.dong);
+    const pool = [...sameDong, ...sameGu];
+    return pool.sort((a, b) => b.rating - a.rating).slice(0, 6);
+  }, [allRestaurants, r]);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(36,32,23,0.4)" }} onClick={onClose}>
@@ -1401,6 +1417,34 @@ function DetailPanel({ r, onClose, onEdit, onDelete }) {
               onOpenDetail={() => {}}
             />
           </div>
+
+          {nearbyCourse.length > 0 && (
+            <div className="mt-5">
+              <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: C.inkFaint }}>
+                {r.name}과 함께 갈 코스 · 평점순
+              </p>
+              <div className="space-y-2">
+                {nearbyCourse.map((c) => {
+                  const mp = mainPhoto(c);
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => onOpenDetail(c.id)}
+                      className="w-full text-left rounded-xl p-2.5 flex gap-3 items-center"
+                      style={{ border: `1px solid ${C.line}`, background: "#FFFFFF" }}
+                    >
+                      <img src={mp?.url} alt={c.name} className="rounded-lg object-cover shrink-0" style={{ width: 52, height: 52 }} />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-display font-semibold text-sm truncate" style={{ color: C.ink }}>{c.name}</p>
+                        <p className="text-xs" style={{ color: C.inkSoft }}>{c.category} · {c.dong}</p>
+                      </div>
+                      <Stars value={c.rating} size={12} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1825,9 +1869,11 @@ function FoodArchiveApp() {
       {detailRestaurant && (
         <DetailPanel
           r={detailRestaurant}
+          allRestaurants={restaurants}
           onClose={() => setDetailId(null)}
           onEdit={(r) => { setEditing(r); setDetailId(null); setFormOpen(true); }}
           onDelete={(r) => setDeleteTarget(r)}
+          onOpenDetail={openDetail}
         />
       )}
 
