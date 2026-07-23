@@ -196,6 +196,70 @@ Object.entries(REGIONS).forEach(([gu, dongs]) => {
 
 const COURSE_PRESETS = ["데이트", "혼밥", "회식", "브런치", "카공", "술집투어", "가족모임", "반려동물동반"];
 
+// A practical subset of well-known Seoul subway stations (not exhaustive) used to
+// power "역 이름으로 검색하면 근처 식당이 뜨는" search — e.g. typing "망원역" sorts
+// restaurants by distance to that station instead of doing a plain text match.
+const STATION_COORDS = {
+  "홍대입구역": { lat: 37.5568, lng: 126.9237 }, "합정역": { lat: 37.5495, lng: 126.9137 },
+  "상수역": { lat: 37.5478, lng: 126.9227 }, "망원역": { lat: 37.5561, lng: 126.9105 },
+  "연신내역": { lat: 37.6188, lng: 126.9207 }, "신촌역": { lat: 37.5597, lng: 126.9425 },
+  "이대역": { lat: 37.5567, lng: 126.9463 }, "아현역": { lat: 37.5578, lng: 126.9558 },
+  "공덕역": { lat: 37.5445, lng: 126.9514 }, "서울역": { lat: 37.5546, lng: 126.9707 },
+  "시청역": { lat: 37.5658, lng: 126.9772 }, "종각역": { lat: 37.5701, lng: 126.9828 },
+  "종로3가역": { lat: 37.5704, lng: 126.9917 }, "동대문역": { lat: 37.5714, lng: 127.0098 },
+  "혜화역": { lat: 37.5820, lng: 127.0018 }, "안암역": { lat: 37.5862, lng: 127.0296 },
+  "성신여대입구역": { lat: 37.5926, lng: 127.0165 }, "한성대입구역": { lat: 37.5885, lng: 127.0063 },
+  "왕십리역": { lat: 37.5615, lng: 127.0374 }, "성수역": { lat: 37.5445, lng: 127.0559 },
+  "뚝섬역": { lat: 37.5474, lng: 127.0472 }, "건대입구역": { lat: 37.5401, lng: 127.0699 },
+  "잠실역": { lat: 37.5133, lng: 127.1001 }, "잠실새내역": { lat: 37.5111, lng: 127.0863 },
+  "석촌역": { lat: 37.5049, lng: 127.1063 }, "강남역": { lat: 37.4979, lng: 127.0276 },
+  "역삼역": { lat: 37.5006, lng: 127.0364 }, "선릉역": { lat: 37.5044, lng: 127.0490 },
+  "삼성역": { lat: 37.5088, lng: 127.0632 }, "교대역": { lat: 37.4936, lng: 127.0142 },
+  "서초역": { lat: 37.4919, lng: 127.0079 }, "사당역": { lat: 37.4766, lng: 126.9816 },
+  "이수역": { lat: 37.4868, lng: 126.9822 }, "신림역": { lat: 37.4842, lng: 126.9298 },
+  "서울대입구역": { lat: 37.4812, lng: 126.9527 }, "여의도역": { lat: 37.5219, lng: 126.9245 },
+  "당산역": { lat: 37.5343, lng: 126.9026 }, "문래역": { lat: 37.5178, lng: 126.8951 },
+  "신도림역": { lat: 37.5089, lng: 126.8913 }, "구로디지털단지역": { lat: 37.4852, lng: 126.9014 },
+  "가산디지털단지역": { lat: 37.4816, lng: 126.8826 }, "이태원역": { lat: 37.5344, lng: 126.9944 },
+  "한강진역": { lat: 37.5399, lng: 127.0016 }, "녹사평역": { lat: 37.5343, lng: 126.9878 },
+  "삼각지역": { lat: 37.5344, lng: 126.9733 }, "용산역": { lat: 37.5299, lng: 126.9648 },
+  "숙대입구역": { lat: 37.5455, lng: 126.9718 }, "압구정역": { lat: 37.5274, lng: 127.0286 },
+  "청담역": { lat: 37.5194, lng: 127.0533 }, "논현역": { lat: 37.5109, lng: 127.0219 },
+  "신사역": { lat: 37.5163, lng: 127.0201 }, "을지로입구역": { lat: 37.5660, lng: 126.9827 },
+  "을지로3가역": { lat: 37.5663, lng: 126.9916 }, "충무로역": { lat: 37.5613, lng: 126.9947 },
+  "청량리역": { lat: 37.5804, lng: 127.0468 }, "회기역": { lat: 37.5896, lng: 127.0576 },
+  "노원역": { lat: 37.6543, lng: 127.0611 }, "수유역": { lat: 37.6373, lng: 127.0257 },
+  "미아사거리역": { lat: 37.6133, lng: 127.0301 }, "길음역": { lat: 37.6030, lng: 127.0250 },
+  "불광역": { lat: 37.6109, lng: 126.9296 }, "구파발역": { lat: 37.6371, lng: 126.9188 },
+  "화곡역": { lat: 37.5410, lng: 126.8402 }, "까치산역": { lat: 37.5314, lng: 126.8467 },
+  "목동역": { lat: 37.5262, lng: 126.8759 }, "발산역": { lat: 37.5581, lng: 126.8377 },
+  "김포공항역": { lat: 37.5622, lng: 126.8010 },
+};
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function findStation(query) {
+  const q = query.trim();
+  if (!q) return null;
+  const bare = q.replace(/역$/, "");
+  if (!bare) return null;
+  const exact = Object.entries(STATION_COORDS).find(([name]) => name.replace(/역$/, "") === bare);
+  if (exact) return { name: exact[0], ...exact[1] };
+  const partial = Object.entries(STATION_COORDS).find(
+    ([name]) => name.includes(bare) || name.replace(/역$/, "").includes(bare)
+  );
+  return partial ? { name: partial[0], ...partial[1] } : null;
+}
+
+
 
 const PRICE_BUCKETS = [
   { key: "all", label: "전체" },
@@ -1522,6 +1586,8 @@ function FoodArchiveApp() {
   const sheetDragStartRef = useRef(0);
   const sheetDragMovedRef = useRef(false);
 
+  const stationMatch = useMemo(() => (query.trim() ? findStation(query) : null), [query]);
+
   const filtered = useMemo(() => {
     const list = restaurants.filter((r) => {
       if (gu && r.gu !== gu) return false;
@@ -1531,19 +1597,29 @@ function FoodArchiveApp() {
       if (filters.price && priceBucketOf(avgPrice(r)) !== filters.price) return false;
       if (filters.revisit && r.revisit !== filters.revisit) return false;
       if (courseFilter && !(r.courses || []).includes(courseFilter)) return false;
-      if (query.trim()) {
+      if (query.trim() && !stationMatch) {
         const q = query.trim().toLowerCase();
         const hay = [r.name, r.gu, r.dong, ...r.menus.map((m) => m.name)].join(" ").toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
+    if (stationMatch) {
+      // "역 이름 검색" ordering: only restaurants with known coordinates, nearest first,
+      // limited to a realistic walking/short-trip radius around the station.
+      return list
+        .filter((r) => r.lat && r.lng)
+        .map((r) => ({ r, d: haversineKm(r.lat, r.lng, stationMatch.lat, stationMatch.lng) }))
+        .filter((x) => x.d <= 2.5)
+        .sort((a, b) => a.d - b.d)
+        .map((x) => x.r);
+    }
     if (courseFilter) {
       // "추천" ordering for a selected course: highest rated first, then closest to current map focus
       return [...list].sort((a, b) => b.rating - a.rating);
     }
     return list;
-  }, [restaurants, gu, dong, filters, query, courseFilter]);
+  }, [restaurants, gu, dong, filters, query, courseFilter, stationMatch]);
 
   const allCourses = useMemo(() => {
     const set = new Set();
@@ -1855,21 +1931,9 @@ function FoodArchiveApp() {
         <div className="hidden lg:flex flex-col shrink-0" style={{ width: 380, borderLeft: `1px solid ${C.line}`, background: C.paper }}>
           <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.line}` }}>
             <p className="text-sm font-semibold" style={{ color: C.ink }}>
-              {courseFilter ? `#${courseFilter} 추천 리스트` : dong ? `${gu} ${dong}` : gu || "서울 전체"}
+              {stationMatch ? `${stationMatch.name} 근처 · 거리순` : courseFilter ? `#${courseFilter} 추천 리스트` : dong ? `${gu} ${dong}` : gu || "서울 전체"}
             </p>
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-mono" style={{ color: C.inkFaint }}>{filtered.length}곳</p>
-              <button onClick={exportData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
-                내보내기
-              </button>
-              <button onClick={() => importFileRef.current?.click()} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
-                가져오기
-              </button>
-              <button onClick={resetToSampleData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.inkFaint }}>
-                샘플로 초기화
-              </button>
-              <input ref={importFileRef} type="file" accept="application/json" className="hidden" onChange={(e) => e.target.files?.[0] && importData(e.target.files[0])} />
-            </div>
+            <p className="text-xs font-mono" style={{ color: C.inkFaint }}>{filtered.length}곳</p>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {filtered.length === 0 ? (
@@ -1934,7 +1998,7 @@ function FoodArchiveApp() {
 
           <div className="overflow-y-auto px-3 pb-4" style={{ height: "calc(100% - 48px)", paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}>
             <p className="text-sm font-semibold px-1 pb-2" style={{ color: C.ink }}>
-              {courseFilter ? `#${courseFilter} 추천 리스트` : dong ? `${gu} ${dong}` : gu || "서울 전체"}
+              {stationMatch ? `${stationMatch.name} 근처 · 거리순` : courseFilter ? `#${courseFilter} 추천 리스트` : dong ? `${gu} ${dong}` : gu || "서울 전체"}
               <span className="font-mono text-xs ml-1.5" style={{ color: C.inkFaint }}>{filtered.length}곳</span>
             </p>
 
@@ -1964,18 +2028,6 @@ function FoodArchiveApp() {
                   </button>
                 );
               })}
-            </div>
-
-            <div className="flex items-center gap-3 px-1 pb-2">
-              <button onClick={exportData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
-                내보내기
-              </button>
-              <button onClick={() => importFileRef.current?.click()} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
-                가져오기
-              </button>
-              <button onClick={resetToSampleData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.inkFaint }}>
-                샘플로 초기화
-              </button>
             </div>
 
             <div className="space-y-2">
