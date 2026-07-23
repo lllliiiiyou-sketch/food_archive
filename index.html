@@ -981,6 +981,7 @@ function RestaurantForm({ initial, onCancel, onSave }) {
   const [latLng, setLatLng] = useState(initial?.lat && initial?.lng ? { lat: initial.lat, lng: initial.lng } : null);
   const [geocodeStatus, setGeocodeStatus] = useState("idle"); // idle | loading | done | error
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
 
   const addCourse = (c) => {
@@ -991,23 +992,35 @@ function RestaurantForm({ initial, onCancel, onSave }) {
   };
   const removeCourse = (c) => setCourses((cs) => cs.filter((x) => x !== c));
 
-  const findCoordinates = () => {
+  const geocodeAddress = (text) => {
+    return new Promise((resolve) => {
+      if (!text.trim() || !MAP_CONFIGURED || !window.kakao?.maps?.services) { resolve(null); return; }
+      const geocoder = new window.kakao.maps.services.Geocoder();
+      geocoder.addressSearch(text.trim(), (result, status) => {
+        if (status === window.kakao.maps.services.Status.OK && result[0]) {
+          resolve({ lat: Number(result[0].y), lng: Number(result[0].x) });
+        } else {
+          resolve(null);
+        }
+      });
+    });
+  };
+
+  const findCoordinates = async () => {
     if (!address.trim()) { window.alert("먼저 주소를 입력해 주세요."); return; }
     if (!MAP_CONFIGURED || !window.kakao?.maps?.services) {
       window.alert("지도 연동이 설정되지 않아 좌표를 자동으로 찾을 수 없어요. 구/동만으로도 지도에 표시됩니다.");
       return;
     }
     setGeocodeStatus("loading");
-    const geocoder = new window.kakao.maps.services.Geocoder();
-    geocoder.addressSearch(address.trim(), (result, status) => {
-      if (status === window.kakao.maps.services.Status.OK && result[0]) {
-        setLatLng({ lat: Number(result[0].y), lng: Number(result[0].x) });
-        setGeocodeStatus("done");
-      } else {
-        setGeocodeStatus("error");
-        window.alert("주소로 좌표를 찾지 못했어요. 주소를 조금 더 구체적으로 입력해 보세요.");
-      }
-    });
+    const found = await geocodeAddress(address);
+    if (found) {
+      setLatLng(found);
+      setGeocodeStatus("done");
+    } else {
+      setGeocodeStatus("error");
+      window.alert("주소로 좌표를 찾지 못했어요. 주소를 조금 더 구체적으로 입력해 보세요.");
+    }
   };
 
   const updateMenu = (id, patch) => setMenus((ms) => ms.map((m) => (m.id === id ? { ...m, ...patch } : m)));
@@ -1049,11 +1062,16 @@ function RestaurantForm({ initial, onCancel, onSave }) {
     return Object.keys(e).length === 0;
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!validate()) return;
+    setSaving(true);
+    let resolvedLatLng = latLng || (initial?.lat && initial?.lng ? { lat: initial.lat, lng: initial.lng } : null);
+    if (!resolvedLatLng) {
+      resolvedLatLng = await geocodeAddress(address); // best-effort auto lookup, doesn't block on failure
+    }
     const cleanMenus = menus.filter((m) => m.name.trim() && m.price !== "").map((m) => ({ ...m, price: Number(m.price) }));
     const center = DONG_CENTERS[`${gu}-${dong}`] || { x: 50, y: 40 };
-    const resolvedLatLng = latLng || (initial?.lat && initial?.lng ? { lat: initial.lat, lng: initial.lng } : DONG_LATLNG[`${gu}-${dong}`]);
+    if (!resolvedLatLng) resolvedLatLng = DONG_LATLNG[`${gu}-${dong}`]; // last resort: approximate 동 center
     const derivedXY = resolvedLatLng ? projectLatLng(resolvedLatLng.lat, resolvedLatLng.lng) : { x: center.x, y: center.y };
     const payload = {
       id: initial?.id || uid("r"),
@@ -1068,6 +1086,7 @@ function RestaurantForm({ initial, onCancel, onSave }) {
       courses,
       photos: photos.length ? photos : [photo(`${name || "new"}-${Date.now()}`, "음식", true)],
     };
+    setSaving(false);
     onSave(payload);
   };
 
@@ -1294,8 +1313,8 @@ function RestaurantForm({ initial, onCancel, onSave }) {
 
         <div className="flex items-center justify-end gap-2 px-5 py-4" style={{ background: C.paper, borderTop: `1px solid ${C.line}` }}>
           <button onClick={onCancel} className="rounded-full px-4 py-2 text-sm font-medium" style={{ color: C.inkSoft }}>취소</button>
-          <button onClick={submit} className="rounded-full px-4 py-2 text-sm font-medium inline-flex items-center gap-1.5" style={{ background: C.navy, color: "#fff" }}>
-            <Icon name="check" width={15} height={15} /> {isEdit ? "수정 완료" : "등록하기"}
+          <button onClick={submit} disabled={saving} className="rounded-full px-4 py-2 text-sm font-medium inline-flex items-center gap-1.5" style={{ background: C.navy, color: "#fff", opacity: saving ? 0.6 : 1 }}>
+            <Icon name="check" width={15} height={15} /> {saving ? "저장 중…" : isEdit ? "수정 완료" : "등록하기"}
           </button>
         </div>
       </div>
@@ -1818,6 +1837,7 @@ function FoodArchiveApp() {
             boxShadow: "0 -6px 20px rgba(36,32,23,0.15)",
             height: "72%",
             transform: sheetExpanded ? "translateY(0)" : "translateY(calc(100% - 172px))",
+            zIndex: 25,
           }}
         >
           <button
@@ -1837,29 +1857,58 @@ function FoodArchiveApp() {
                 r={filtered.find((r) => r.id === selectedId || r.id === hoveredId) || filtered[0]}
                 active
                 onHover={() => {}}
-                onSelect={(id) => { selectMarker(id); setSheetExpanded(true); }}
+                onSelect={() => setSheetExpanded(true)}
                 onOpenDetail={openDetail}
               />
             </div>
           )}
 
           <div className="overflow-y-auto px-3 pb-4" style={{ height: "calc(100% - 48px)" }}>
-            <div className="flex items-center justify-between px-1 pb-2 gap-2 flex-wrap">
-              <p className="text-sm font-semibold" style={{ color: C.ink }}>
-                {courseFilter ? `#${courseFilter} 추천 리스트` : dong ? `${gu} ${dong}` : gu || "서울 전체"}
-              </p>
-              <div className="flex items-center gap-2">
-                <button onClick={exportData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
-                  내보내기
-                </button>
-                <button onClick={() => importFileRef.current?.click()} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
-                  가져오기
-                </button>
-                <button onClick={resetToSampleData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.inkFaint }}>
-                  샘플로 초기화
-                </button>
-              </div>
+            <p className="text-sm font-semibold px-1 pb-2" style={{ color: C.ink }}>
+              {courseFilter ? `#${courseFilter} 추천 리스트` : dong ? `${gu} ${dong}` : gu || "서울 전체"}
+              <span className="font-mono text-xs ml-1.5" style={{ color: C.inkFaint }}>{filtered.length}곳</span>
+            </p>
+
+            <div className="flex items-center gap-2 rounded-full px-3 py-2 mb-2" style={{ background: C.paperAlt }}>
+              <Icon name="search" width={14} height={14} style={{ color: C.inkFaint }} />
+              <input
+                value={query} onChange={(e) => setQuery(e.target.value)}
+                placeholder="식당명, 지역, 메뉴로 검색"
+                className="flex-1 bg-transparent text-sm"
+                style={{ color: C.ink }}
+              />
+              {query && <button onClick={() => setQuery("")}><Icon name="x" width={14} height={14} style={{ color: C.inkFaint }} /></button>}
             </div>
+
+            <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2" style={{ scrollbarWidth: "none" }}>
+              {["전체", ...CATEGORIES].map((c) => {
+                const val = c === "전체" ? null : c;
+                const on = filters.category === val;
+                return (
+                  <button
+                    key={c}
+                    onClick={() => setFilters((f) => ({ ...f, category: on ? null : val }))}
+                    className="shrink-0 rounded-full px-3 py-1.5 text-xs font-medium"
+                    style={{ background: on ? C.navy : "#fff", color: on ? "#fff" : C.inkSoft, border: `1px solid ${on ? C.navy : C.line}` }}
+                  >
+                    {c}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-3 px-1 pb-2">
+              <button onClick={exportData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
+                내보내기
+              </button>
+              <button onClick={() => importFileRef.current?.click()} className="text-xs font-medium underline decoration-dotted" style={{ color: C.navy }}>
+                가져오기
+              </button>
+              <button onClick={resetToSampleData} className="text-xs font-medium underline decoration-dotted" style={{ color: C.inkFaint }}>
+                샘플로 초기화
+              </button>
+            </div>
+
             <div className="space-y-2">
               {filtered.length === 0 ? (
                 <EmptyState onReset={() => { setGu(null); setDong(null); setFilters({ category: null, minRating: 0, price: null, revisit: null }); setQuery(""); }} />
@@ -1869,7 +1918,7 @@ function FoodArchiveApp() {
                     key={r.id} r={r}
                     active={r.id === selectedId}
                     onHover={() => {}}
-                    onSelect={(id) => { selectMarker(id); setSheetExpanded(false); }}
+                    onSelect={(id) => { selectMarker(id); openDetail(id); }}
                     onOpenDetail={openDetail}
                   />
                 ))
