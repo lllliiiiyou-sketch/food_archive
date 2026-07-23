@@ -82,6 +82,23 @@ const CATEGORY_MARK = {
   한식: "飯", 카페: "coffee", 베이커리: "bread", 양식: "fork", 일식: "鮨",
   중식: "包", 분식: "떡", 술집: "酒", 아시안: "aroi", 디저트: "cake",
 };
+const CATEGORY_COLORS = {
+  한식: "#3B82F6", 양식: "#F97316", 디저트: "#EC4899", 카페: "#8B5E34",
+  베이커리: "#D4A017", 일식: "#EF4444", 중식: "#FBBF24", 분식: "#A855F7",
+  술집: "#14B8A6", 아시안: "#22C55E",
+};
+const categoryColor = (cat) => CATEGORY_COLORS[cat] || C.navy;
+
+function pinSvgHtml(color, size, active) {
+  const ring = active ? "#B07E2E" : "#FFFFFF";
+  const starScale = size * 0.42;
+  return `
+    <div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2.5px solid ${ring};box-shadow:0 1px 4px rgba(36,32,23,0.35);display:flex;align-items:center;justify-content:center;">
+      <svg width="${starScale}" height="${starScale}" viewBox="0 0 24 24" fill="#ffffff">
+        <path d="M12 2.2l2.9 6.5 7 .6-5.3 4.6 1.6 6.9-6.2-3.9-6.2 3.9 1.6-6.9-5.3-4.6 7-.6z"/>
+      </svg>
+    </div>`;
+}
 
 const REGIONS = {
   종로구: ["청운동", "효자동", "사직동", "삼청동", "부암동", "평창동", "가회동", "익선동", "창신동", "숭인동", "혜화동", "이화동"],
@@ -147,6 +164,23 @@ function dongLatLng(gu, dongIndex, dongCount) {
   const angle = (dongIndex / Math.max(1, dongCount)) * Math.PI * 2;
   const radius = 0.012 + (dongIndex % 3) * 0.004;
   return { lat: base.lat + Math.sin(angle) * radius, lng: base.lng + Math.cos(angle) * radius };
+}
+
+// Deterministic per-restaurant jitter (based on id) so restaurants that fall back
+// to their 동's approximate center — because they haven't been geocoded yet —
+// fan out instead of stacking exactly on top of one another on the map.
+function jitterFromId(id, baseLat, baseLng) {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) { hash = (hash << 5) - hash + id.charCodeAt(i); hash |= 0; }
+  const a = ((hash % 1000) / 1000) * Math.PI * 2;
+  const r = 0.0025 + (Math.abs(hash) % 5) * 0.0012;
+  return { lat: baseLat + Math.sin(a) * r, lng: baseLng + Math.cos(a) * r };
+}
+function resolveLatLng(r) {
+  if (r.lat && r.lng) return { lat: r.lat, lng: r.lng };
+  const fallback = DONG_LATLNG[`${r.gu}-${r.dong}`];
+  if (!fallback) return null;
+  return jitterFromId(r.id, fallback.lat, fallback.lng);
 }
 
 const DONG_LATLNG = {};
@@ -354,7 +388,7 @@ const priceBucketOf = (avg) => (avg <= 10000 ? "u1" : avg <= 20000 ? "1-2" : avg
 const uid = (p) => `${p}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-function compressImageFile(file, maxDimension = 640, quality = 0.6) {
+function compressImageFile(file, maxDimension = 480, quality = 0.5) {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -483,6 +517,7 @@ function MockMap({ restaurants, selectedId, hoveredId, onSelectMarker, focus, pr
         {/* markers */}
         {restaurants.map((r) => {
           const active = r.id === selectedId || r.id === hoveredId;
+          const size = active ? 34 : 26;
           return (
             <button
               key={r.id}
@@ -491,19 +526,18 @@ function MockMap({ restaurants, selectedId, hoveredId, onSelectMarker, focus, pr
               style={{
                 left: `${r.x}%`,
                 top: `${r.y}%`,
-                width: active ? 34 : 26,
-                height: active ? 34 : 26,
+                width: size,
+                height: size,
                 transform: "translate(-50%,-100%)",
-                background: active ? C.navy : "#FFFFFF",
-                border: `2px solid ${active ? C.gold : C.navy}`,
-                color: active ? "#fff" : C.navy,
-                boxShadow: "0 1px 3px rgba(36,32,23,0.25)",
+                background: categoryColor(r.category),
+                border: `2.5px solid ${active ? C.gold : "#FFFFFF"}`,
+                boxShadow: "0 1px 4px rgba(36,32,23,0.35)",
                 zIndex: active ? 20 : 10,
               }}
               aria-label={r.name}
               title={r.name}
             >
-              <Icon name="mapPin" width={active ? 17 : 14} height={active ? 17 : 14} fill={active ? C.gold : "none"} />
+              <Icon name="star" width={size * 0.42} height={size * 0.42} fill="#ffffff" stroke="none" />
             </button>
           );
         })}
@@ -626,21 +660,23 @@ function KakaoMap({ restaurants, selectedId, hoveredId, onSelectMarker, focus, p
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
     restaurants.forEach((r) => {
-      // fall back to the 동 center when this restaurant has no precise geocoded
-      // coordinates yet (e.g. it was added before the map was configured)
-      const fallback = DONG_LATLNG[`${r.gu}-${r.dong}`];
-      const lat = r.lat || fallback?.lat;
-      const lng = r.lng || fallback?.lng;
-      if (!lat || !lng) return;
+      const ll = resolveLatLng(r);
+      if (!ll) return;
       const active = r.id === selectedId || r.id === hoveredId;
-      const marker = new kakao.maps.Marker({
-        position: new kakao.maps.LatLng(lat, lng),
-        map: mapRef.current,
-        title: r.name,
+      const size = active ? 34 : 26;
+      const el = document.createElement("div");
+      el.innerHTML = pinSvgHtml(categoryColor(r.category), size, active);
+      el.style.cursor = "pointer";
+      el.style.transform = "translate(-50%, -100%)";
+      el.addEventListener("click", () => onSelectMarker(r.id));
+      const overlay = new kakao.maps.CustomOverlay({
+        position: new kakao.maps.LatLng(ll.lat, ll.lng),
+        content: el,
+        yAnchor: 1,
         zIndex: active ? 20 : 10,
       });
-      kakao.maps.event.addListener(marker, "click", () => onSelectMarker(r.id));
-      markersRef.current.push(marker);
+      overlay.setMap(mapRef.current);
+      markersRef.current.push(overlay);
     });
   }, [ready, restaurants, selectedId, hoveredId, onSelectMarker]);
 
@@ -976,9 +1012,10 @@ function RestaurantForm({ initial, onCancel, onSave }) {
   const setSignature = (id) => setMenus((ms) => ms.map((m) => ({ ...m, isSignature: m.id === id })));
 
   const handleFiles = (fileList) => {
-    const files = Array.from(fileList).slice(0, 8);
+    const remaining = Math.max(0, 3 - photos.length);
+    const files = Array.from(fileList).slice(0, remaining);
     files.forEach((file) => {
-      compressImageFile(file, 640, 0.6).then((dataUrl) => {
+      compressImageFile(file).then((dataUrl) => {
         setPhotos((ps) => {
           const next = [...ps, { id: uid("p"), url: dataUrl, type: "음식", isMain: ps.length === 0 }];
           return next;
@@ -1172,7 +1209,7 @@ function RestaurantForm({ initial, onCancel, onSave }) {
                 </button>
                 <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => e.target.files && handleFiles(e.target.files)} />
               </div>
-              <p className="text-xs" style={{ color: C.inkFaint }}>여러 장 업로드 가능 · 하나를 대표 사진으로 지정하세요.</p>
+              <p className="text-xs" style={{ color: C.inkFaint }}>최대 3장 업로드 가능 · 하나를 대표 사진으로 지정하세요.</p>
             </div>
           ))}
 
@@ -1479,6 +1516,14 @@ function FoodArchiveApp() {
   const updateRestaurants = (next) => {
     setRestaurants(next);
     if (CLOUD_CONFIGURED) {
+      const estimatedKb = Math.round(new Blob([JSON.stringify(next)]).size / 1024);
+      if (estimatedKb > 95) {
+        setCloudStatus("error");
+        window.alert(
+          `공유 저장소 용량(100KB)에 거의 다 찼어요 (현재 약 ${estimatedKb}KB). 방금 변경한 내용은 이 브라우저에만 저장돼요.\n\n사진을 줄이거나(대표 사진 1장만 남기기), 오래된 기록의 사진을 지우면 다시 공유 저장이 가능해요.`
+        );
+        return;
+      }
       saveCloudRestaurants(next)
         .then(() => setCloudStatus("ready"))
         .catch((err) => {
