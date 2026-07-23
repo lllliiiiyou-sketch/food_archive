@@ -1722,6 +1722,7 @@ function FoodArchiveApp() {
         input[type=range] { accent-color: ${C.navy}; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-thumb { background: ${C.lineStrong}; border-radius: 8px; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
 
       {/* header */}
@@ -1737,7 +1738,7 @@ function FoodArchiveApp() {
             </div>
           </div>
 
-          <div className="flex-1 min-w-[200px] flex items-center gap-2 max-w-md">
+          <div className="hidden lg:flex flex-1 min-w-[200px] items-center gap-2 max-w-md">
             <div className="flex-1 flex items-center gap-2 rounded-full px-3 py-1.5" style={{ background: C.paperAlt }}>
               <Icon name="search" width={15} height={15} style={{ color: C.inkFaint }} />
               <input
@@ -1934,7 +1935,7 @@ function FoodArchiveApp() {
               {query && <button onClick={() => setQuery("")}><Icon name="x" width={14} height={14} style={{ color: C.inkFaint }} /></button>}
             </div>
 
-            <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2" style={{ scrollbarWidth: "none" }}>
+            <div className="flex gap-1.5 overflow-x-auto pb-2 mb-2 no-scrollbar" style={{ scrollbarWidth: "none" }}>
               {["전체", ...CATEGORIES].map((c) => {
                 const val = c === "전체" ? null : c;
                 const on = filters.category === val;
