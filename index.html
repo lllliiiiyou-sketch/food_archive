@@ -1836,6 +1836,19 @@ function FoodArchiveApp() {
             onClosePreview={() => setPreviewId(null)}
             onOpenDetail={openDetail}
           />
+
+          {!sheetExpanded && (
+            <div className="lg:hidden absolute top-3 left-3 right-3 flex items-center gap-2 rounded-full px-3 py-2.5" style={{ background: "#fff", boxShadow: "0 4px 16px rgba(36,32,23,0.18)", zIndex: 20 }}>
+              <Icon name="search" width={15} height={15} style={{ color: C.inkFaint }} />
+              <input
+                value={query} onChange={(e) => setQuery(e.target.value)}
+                placeholder="식당명, 지역, 메뉴로 검색"
+                className="flex-1 bg-transparent text-sm"
+                style={{ color: C.ink }}
+              />
+              {query && <button onClick={() => setQuery("")}><Icon name="x" width={14} height={14} style={{ color: C.inkFaint }} /></button>}
+            </div>
+          )}
         </div>
 
         {/* desktop list */}
@@ -1882,7 +1895,8 @@ function FoodArchiveApp() {
             background: C.paper,
             borderTop: `1px solid ${C.line}`,
             boxShadow: "0 -6px 20px rgba(36,32,23,0.15)",
-            height: "72%",
+            height: "94%",
+            overflow: "hidden",
             transition: sheetDragging ? "none" : "transform 300ms ease-out",
             transform: sheetExpanded
               ? `translateY(${sheetDragY}px)`
@@ -1918,7 +1932,7 @@ function FoodArchiveApp() {
             </div>
           )}
 
-          <div className="overflow-y-auto px-3 pb-4" style={{ height: "calc(100% - 48px)" }}>
+          <div className="overflow-y-auto px-3 pb-4" style={{ height: "calc(100% - 48px)", paddingBottom: "calc(1rem + env(safe-area-inset-bottom, 0px))" }}>
             <p className="text-sm font-semibold px-1 pb-2" style={{ color: C.ink }}>
               {courseFilter ? `#${courseFilter} 추천 리스트` : dong ? `${gu} ${dong}` : gu || "서울 전체"}
               <span className="font-mono text-xs ml-1.5" style={{ color: C.inkFaint }}>{filtered.length}곳</span>
